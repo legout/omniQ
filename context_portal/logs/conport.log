@@ -1,0 +1,24 @@
+2025-06-21 15:00:30,612 - INFO - context_portal_mcp.main - File logging configured to: /Volumes/WD_Blue_1TB/coding/libs/omniQ/context_portal/logs/conport.log
+2025-06-21 15:00:30,612 - INFO - context_portal_mcp.main - File logging configured to: /Volumes/WD_Blue_1TB/coding/libs/omniQ/context_portal/logs/conport.log
+2025-06-21 15:00:30,613 - INFO - context_portal_mcp.main - Parsed CLI args: Namespace(host='127.0.0.1', port=8000, workspace_id='/Volumes/WD_Blue_1TB/coding/libs/omniQ', mode='stdio', log_file='logs/conport.log', log_level='INFO')
+2025-06-21 15:00:30,613 - INFO - context_portal_mcp.main - Parsed CLI args: Namespace(host='127.0.0.1', port=8000, workspace_id='/Volumes/WD_Blue_1TB/coding/libs/omniQ', mode='stdio', log_file='logs/conport.log', log_level='INFO')
+2025-06-21 15:00:30,613 - INFO - context_portal_mcp.main - Starting ConPort in STDIO mode using FastMCP for initial CLI arg workspace_id: /Volumes/WD_Blue_1TB/coding/libs/omniQ
+2025-06-21 15:00:30,613 - INFO - context_portal_mcp.main - Starting ConPort in STDIO mode using FastMCP for initial CLI arg workspace_id: /Volumes/WD_Blue_1TB/coding/libs/omniQ
+2025-06-21 15:00:30,613 - INFO - context_portal_mcp.db.database - Alembic.ini not found. Creating at /Volumes/WD_Blue_1TB/coding/libs/omniQ/context_portal/alembic.ini
+2025-06-21 15:00:30,613 - INFO - context_portal_mcp.db.database - Alembic.ini not found. Creating at /Volumes/WD_Blue_1TB/coding/libs/omniQ/context_portal/alembic.ini
+2025-06-21 15:00:30,614 - INFO - context_portal_mcp.db.database - Alembic env.py not found. Creating at /Volumes/WD_Blue_1TB/coding/libs/omniQ/context_portal/alembic/env.py
+2025-06-21 15:00:30,614 - INFO - context_portal_mcp.db.database - Alembic env.py not found. Creating at /Volumes/WD_Blue_1TB/coding/libs/omniQ/context_portal/alembic/env.py
+2025-06-21 15:00:30,614 - INFO - context_portal_mcp.db.database - Initial schema not found. Creating at /Volumes/WD_Blue_1TB/coding/libs/omniQ/context_portal/alembic/versions/2025_06_17_initial_schema.py
+2025-06-21 15:00:30,614 - INFO - context_portal_mcp.db.database - Initial schema not found. Creating at /Volumes/WD_Blue_1TB/coding/libs/omniQ/context_portal/alembic/versions/2025_06_17_initial_schema.py
+2025-06-21 15:00:30,617 - INFO - context_portal_mcp.main - STDIO mode: Using effective_workspace_id '/Volumes/WD_Blue_1TB/coding/libs/omniQ'. Database directory will be created on first actual DB use.
+2025-06-21 15:00:30,617 - INFO - context_portal_mcp.main - STDIO mode: Using effective_workspace_id '/Volumes/WD_Blue_1TB/coding/libs/omniQ'. Database directory will be created on first actual DB use.
+2025-06-21 15:00:30,637 - INFO - FastMCP.fastmcp.server.server - Starting MCP server 'ConPort' with transport 'stdio'
+2025-06-21 15:00:30,637 - INFO - FastMCP.fastmcp.server.server - Starting MCP server 'ConPort' with transport 'stdio'
+2025-06-21 15:00:30,640 - INFO - context_portal_mcp.main - ConPort FastMCP server lifespan starting.
+2025-06-21 15:00:30,640 - INFO - context_portal_mcp.main - ConPort FastMCP server lifespan starting.
+2025-06-21 15:00:30,657 - INFO - mcp.server.lowlevel.server - Processing request of type ListToolsRequest
+2025-06-21 15:00:30,657 - INFO - mcp.server.lowlevel.server - Processing request of type ListToolsRequest
+2025-06-21 15:00:30,666 - INFO - mcp.server.lowlevel.server - Processing request of type ListResourcesRequest
+2025-06-21 15:00:30,666 - INFO - mcp.server.lowlevel.server - Processing request of type ListResourcesRequest
+2025-06-21 15:00:30,667 - INFO - mcp.server.lowlevel.server - Processing request of type ListResourceTemplatesRequest
+2025-06-21 15:00:30,667 - INFO - mcp.server.lowlevel.server - Processing request of type ListResourceTemplatesRequest
