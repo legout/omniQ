@@ -8,12 +8,15 @@ This plan outlines the development of `OmniQ`, a modular Python task queue libra
 
 ### Core Design Principles
 - **Dual Interface**: Provide both sync and async APIs throughout the library
-- **Separation of Concerns**: Task storage, event logging, and execution are decoupled
+- **Separation of Concerns**: Task storage, result storage, and event logging are decoupled and independent
 - **Interface-Driven**: All components implement common interfaces
 - **Storage Abstraction**: Use `obstore` for file and memory storage with extended capabilities
 - **Worker Flexibility**: Support multiple worker types (async, thread, process, gevent)
 - **Serialization Strategy**: Intelligent serialization with `msgspec` and `dill` for task enqueuing/dequeuing
-- **Unified Storage**: Use the same storage backends for tasks, results, and events
+- **Storage Independence**: Allow independent selection of storage backends for tasks, results, and events
+- **SQL-Based Event Logging**: Use SQL or structured storage for efficient event querying and analysis
+- **Task Lifecycle Management**: Support task TTL and automatic cleanup of expired tasks
+- **Flexible Scheduling**: Enable pausing and resuming of scheduled tasks
 
 ### Enhanced System Architecture
 ```
@@ -22,18 +25,28 @@ TaskQueue (Orchestrator)
 │   ├── Async API
 │   └── Sync API (wrappers around async)
 ├── Task Management Layer
-│   ├── Task (data model)
-│   ├── Schedule (timing logic)
+│   ├── Task (data model with TTL)
+│   ├── Schedule (timing logic with pause/resume)
 │   └── TaskDependencyGraph (dependency resolution)
 ├── Storage Layer
-│   ├── Storage Interface (tasks/schedules/results)
+│   ├── Task Storage Interface
 │   │   ├── File Storage (using obstore for local/cloud files)
 │   │   ├── Memory Storage (using obstore MemoryStore)
-│   │   ├── SQLite Storage (tables for tasks, results, events)
-│   │   ├── PostgreSQL Storage (tables for tasks, results, events)
-│   │   ├── Redis Storage (keys for tasks, results, events)
-│   │   └── NATS Storage (streams, KV, object store)
-│   └── EventStorage Interface (monitoring)
+│   │   ├── SQLite Storage
+│   │   ├── PostgreSQL Storage
+│   │   ├── Redis Storage
+│   │   └── NATS Storage
+│   ├── Result Storage Interface (independent from task storage)
+│   │   ├── File Storage (using obstore for local/cloud files)
+│   │   ├── Memory Storage (using obstore MemoryStore)
+│   │   ├── SQLite Storage
+│   │   ├── PostgreSQL Storage
+│   │   ├── Redis Storage
+│   │   └── NATS Storage
+│   └── Event Storage Interface (SQL-based only)
+│       ├── SQLite Storage
+│       ├── PostgreSQL Storage
+│       └── File Storage (JSON + DuckDB)
 ├── Execution Layer
 │   ├── Worker Types
 │   │   ├── Async Workers
@@ -47,8 +60,8 @@ TaskQueue (Orchestrator)
 ```
 
 ### Data Flow
-1. Tasks → Serialization → Storage Backend → TaskQueue → Worker Selection → Execution → Result Serialization → Result Storage
-2. Events → EventStorage → Dashboard/Monitoring
+1.Tasks → Serialization → Task Storage Backend → TaskQueue → Worker Selection → Execution → Result Serialization → Result Storage Backend
+2. Events → SQL-based Event Storage → Dashboard/Monitoring
 3. Schedules → Scheduler → Task Creation → Queue
 
 ---
@@ -59,8 +72,8 @@ TaskQueue (Orchestrator)
 **Purpose**: Define data structures and business logic
 
 **Components**:
-- `Task`: Serializable task with metadata, dependencies, callbacks
-- `Schedule`: Timing logic (cron, interval, timestamp)
+- `Task`: Serializable task with metadata, dependencies, callbacks, and TTL
+- `Schedule`: Timing logic (cron, interval, timestamp) with pause/resume capability
 - `TaskResult`: Execution outcome storage
 - `TaskEvent`: Event logging data model
 
@@ -70,20 +83,26 @@ TaskQueue (Orchestrator)
 - Implement `__hash__` and `__eq__` for dependency tracking
 - Store task metadata for tracking and monitoring
 - Define clear result states (pending, running, success, error)
-
+- Include TTL for automatic task expiration
+- Support schedule state management (active, paused)
 ### 2.2 Storage Interfaces (`omniq.storage`)
 **Purpose**: Abstract storage backends for pluggability
 
 **Components**:
-- `BaseStorage`: Abstract interface with both sync and async methods
-- `BaseEventStorage`: Abstract interface for event logging
-- Storage implementations:
+- `BaseTaskStorage`: Abstract interface for task storage with both sync and async methods
+- `BaseResultStorage`: Abstract interface for result storage with both sync and async methods
+- `BaseEventStorage`: Abstract interface for event logging (SQL-based only)
+- Task and Result Storage implementations:
   - `FileStorage`: Using `obstore` for local and cloud storage (S3, Azure, GCP)
   - `MemoryStorage`: Using `obstore.MemoryStore` instead of custom RAM storage
-  - `SQLiteStorage`: Local database storage with tables for tasks, results, events
-  - `PostgresStorage`: Distributed database storage (async) with tables for tasks, results, events
-  - `RedisStorage`: Distributed cache storage (async) with keys for tasks, results, events
-  - `NATSStorage`: Message queue storage (async) with streams, KV store, and object store
+  - `SQLiteStorage`: Local database storage
+  - `PostgresStorage`: Distributed database storage (async)
+  - `RedisStorage`: Distributed cache storage (async)
+  - `NATSStorage`: Message queue storage (async)
+- Event Storage implementations:
+  - `SQLiteEventStorage`: Local database event storage
+  - `PostgresEventStorage`: Distributed database event storage
+  - `FileEventStorage`: JSON files with DuckDB querying
 
 **Key Design Decisions**:
 - Use `obstore` for file and memory storage backends
@@ -91,11 +110,11 @@ TaskQueue (Orchestrator)
 - Connection pooling for distributed backends
 - Transaction support for consistency
 - Bulk operations for performance
-- Store results in the same backend as tasks
-- Use specialized features of each backend for result storage:
-  - NATS: KV store or object store for results
-  - SQLite/PostgreSQL: Dedicated result tables
-  - Redis: Hash structures for results with TTL
+- Allow independent selection of storage backends for tasks, results, and events
+- Default to using the same backend type for tasks and results if not explicitly specified
+- Restrict event storage to SQL-based backends for efficient querying
+- Support task TTL enforcement and cleanup in all storage backends
+- Store schedule state (active/paused) in storage backends
 
 ### 2.3 Serialization Layer (`omniq.serialization`)
 **Purpose**: Task and result serialization for storage and retrieval
@@ -119,9 +138,10 @@ TaskQueue (Orchestrator)
 **Components**:
 - `AsyncTaskQueue`: Async implementation of task queue
 - `SyncTaskQueue`: Sync wrapper around async implementation
-- `Scheduler`: Schedule processing and task queuing
+- `Scheduler`: Schedule processing and task queuing with pause/resume capability
 - `DependencyResolver`: Graph-based dependency management
 - `RetryManager`: Exponential backoff and failure handling
+- `TTLManager`: Task expiration and cleanup
 
 **Key Design Decisions**:
 - Event-driven architecture using asyncio queues
@@ -129,7 +149,9 @@ TaskQueue (Orchestrator)
 - Graceful shutdown with task completion
 - Circuit breaker pattern for fault tolerance
 - Support multiple storage backends
-- Unified result handling across storage backends
+- Independent configuration of task and result storage backends
+- Implement task TTL enforcement and cleanup
+- Support schedule pausing and resuming
 
 ### 2.5 Worker Layer (`omniq.workers`)
 **Purpose**: Task execution with multiple worker types
@@ -149,6 +171,7 @@ TaskQueue (Orchestrator)
 - Provide proper resource management and cleanup
 - Worker selection based on task requirements
 - Result serialization and storage after task completion
+- Respect task TTL during execution
 
 ### 2.6 Event System (`omniq.events`)
 **Purpose**: Task lifecycle tracking and monitoring
@@ -156,7 +179,7 @@ TaskQueue (Orchestrator)
 **Components**:
 - `EventLogger`: Central event collection with configurable levels
 - `EventProcessor`: Async event handling
-- Event types: ENQUEUED, EXECUTING, COMPLETE, ERROR, RETRY, CANCELLED
+- Event types: ENQUEUED, EXECUTING, COMPLETE, ERROR, RETRY, CANCELLED, EXPIRED, SCHEDULE_PAUSED, SCHEDULE_RESUMED
 
 **Key Design Decisions**:
 - Non-blocking event logging with disable option
@@ -164,6 +187,9 @@ TaskQueue (Orchestrator)
 - Configurable event retention policies
 - Runtime logging level adjustment (DEBUG, INFO, WARNING, ERROR, DISABLED)
 - Support both sync and async event handling
+- SQL-based storage for efficient querying and analysis
+- Track task TTL events and schedule state changes
+
 
 ### 2.7 Dashboard (`omniq.dashboard`)
 **Purpose**: Web interface for monitoring and management
@@ -180,6 +206,8 @@ TaskQueue (Orchestrator)
 - RESTful API for programmatic access
 - Comprehensive task and worker monitoring
 - Result inspection and visualization
+- Schedule management with pause/resume controls
+- Task TTL visualization and management
 
 ### 2.8 Configuration (`omniq.config`)
 **Purpose**: Centralized configuration management
@@ -194,6 +222,8 @@ TaskQueue (Orchestrator)
 - Type conversion and validation for config values
 - Component-specific configuration sections
 - Runtime configuration changes
+- Independent configuration of task, result, and event storage
+- Configuration for default task TTL
 
 ---
 
@@ -456,12 +486,14 @@ TaskQueue (Orchestrator)
 6. **Dashboard & Documentation**: Create monitoring interface and comprehensive documentation
 
 ### Testing Strategy
-- Unit tests for each module
+- Unit tests developed concurrently with code (test-driven development)
 - Integration tests for storage backends
 - Worker-specific tests for different execution models
 - Performance benchmarks for critical paths
 - Sync and async interface tests
 - Result storage and retrieval tests
+- Schedule pause/resume functionality tests
+- Task TTL enforcement tests
 
 ### Dependency Management
 - Core library: `obstore`, `msgspec`, `dill`, `asyncio` (stdlib)
@@ -479,8 +511,12 @@ TaskQueue (Orchestrator)
 - Support the following variables:
   - `OMNIQ_LOG_LEVEL`: Set logging level (DEBUG, INFO, WARNING, ERROR, DISABLED)
   - `OMNIQ_DISABLE_LOGGING`: Disable all logging when set to "1" or "true"
-  - `OMNIQ_STORAGE_TYPE`: Default storage backend (file, memory, sqlite, postgres, redis, nats)
-  - `OMNIQ_STORAGE_URL`: Connection string for storage backend
+  - `OMNIQ_TASK_STORAGE_TYPE`: Storage backend for tasks (file, memory, sqlite, postgres, redis, nats)
+  - `OMNIQ_TASK_STORAGE_URL`: Connection string for task storage backend
+  - `OMNIQ_RESULT_STORAGE_TYPE`: Storage backend for results (file, memory, sqlite, postgres, redis, nats)
+  - `OMNIQ_RESULT_STORAGE_URL`: Connection string for result storage backend
+  - `OMNIQ_EVENT_STORAGE_TYPE`: Storage backend for events (sqlite, postgres, file)
+  - `OMNIQ_EVENT_STORAGE_URL`: Connection string for event storage backend
   - `OMNIQ_OBSTORE_URI`: URI for obstore (e.g., "file:///path", "s3://bucket", "memory://")
   - `OMNIQ_DEFAULT_WORKER`: Default worker type (async, thread, process, gevent)
   - `OMNIQ_MAX_WORKERS`: Maximum number of workers
@@ -488,6 +524,7 @@ TaskQueue (Orchestrator)
   - `OMNIQ_PROCESS_WORKERS`: Process pool size
   - `OMNIQ_GEVENT_WORKERS`: Gevent pool size
   - `OMNIQ_TASK_TIMEOUT`: Default task execution timeout in seconds
+  - `OMNIQ_TASK_TTL`: Default time-to-live for tasks in seconds
   - `OMNIQ_RETRY_ATTEMPTS`: Default number of retry attempts
   - `OMNIQ_RETRY_DELAY`: Default delay between retries in seconds
   - `OMNIQ_RESULT_TTL`: Default time-to-live for task results in seconds
@@ -495,19 +532,16 @@ TaskQueue (Orchestrator)
   - `OMNIQ_DASHBOARD_ENABLED`: Enable/disable dashboard
   - `OMNIQ_COMPONENT_LOG_LEVELS`: JSON string with per-component logging levels
 
-### Context7 MCP Usage
-When implementing tasks involving unfamiliar libraries, use the context7 MCP to:
+### Context7 MCP and Deepwiki MCP Usage
+When implementing tasks involving unfamiliar libraries, use the context7 MCP and deepwiki MCP to:
 - **msgspec**: Get advanced serialization patterns and validation examples
 - **obstore**: Learn storage abstraction patterns and cloud storage integration
-- **gevent**: Understand cooperative multitasking patterns
-- **asyncio**: Learn advanced async patterns and best practices
-- **concurrent.futures**: Understand thread and process pool patterns
-- **NATS JetStream**: Learn advanced messaging patterns
-- **Redis advanced features**: Explore pub/sub, clustering, and optimization
-- **PostgreSQL optimization**: Learn connection pooling and performance tuning
+- **gevent/greenlet**: Understand cooperative multitasking patterns
+- **nats/nats.py**: Learn advanced messaging patterns
 - **litestar**: Understand API routing, dependency injection, and middleware patterns
 - **htpy**: Learn component-based UI development and templating
-- **datastar-py**: Understand reactive data binding and state management
+- **datastar/datastar-py**: Understand reactive data binding and state management
+
 
 ### Sync/Async Implementation Guidelines
 - **Async First**: Implement core functionality using async
@@ -524,15 +558,27 @@ When implementing tasks involving unfamiliar libraries, use the context7 MCP to:
 - **Task Routing**: Intelligent routing of tasks to appropriate workers
 - **Result Handling**: Consistent result serialization and storage across worker types
 
-### Result Storage Implementation Guidelines
-- **Backend Integration**: Use the same backend for tasks and results
+### Storage Implementation Guidelines
+- **Independent Configuration**: Allow separate configuration of task, result, and event storage
+- **Default Behavior**: Use the same backend type for tasks and results if not explicitly specified
+- **SQL-Based Event Storage**: Restrict event storage to SQL or structured storage options
 - **Serialization Consistency**: Use the same serialization approach for tasks and results
-- **TTL Support**: Implement expiration for results across all backends
-- **Specialized Features**:
-  - NATS: Use KV store or object store for results
-  - SQLite/PostgreSQL: Use dedicated result tables
-  - Redis: Use hash structures with TTL
-  - File/Memory: Use obstore with metadata
+- **TTL Support**: Implement expiration for both tasks and results across all backends
+- **Backend-Specific Optimizations**: Use specialized features of each backend where appropriate
+- **Schedule State Management**: Store schedule state (active/paused) in all backends
+
+### Testing Guidelines
+- **Test-Driven Development**: Write unit tests concurrently with code development
+- **Test Coverage**: Aim for high test coverage across all components
+- **Test Categories**: 
+  - Unit tests for individual components
+  - Integration tests for backend interactions
+  - Functional tests for end-to-end workflows
+  - Performance tests for critical paths
+- **Test Fixtures**: Create reusable fixtures for common test scenarios
+- **Async Testing**: Use pytest-asyncio for testing async code
+- **Mock Dependencies**: Use mocks for external dependencies
+- **Continuous Testing**: Run tests automatically on code changes
 
 ### Example Usage (Async)
 ```python
