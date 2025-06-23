@@ -1,4 +1,4 @@
-# Enhanced Implementation Plan for the `OmniQ` Python Library
+# Implementation Plan for the `OmniQ` Python Library
 
 This plan outlines the development of `OmniQ`, a modular Python task queue library designed for both local and distributed task processing with scheduling, task dependencies, callbacks, event logging, and a dashboard.
 
@@ -64,6 +64,38 @@ TaskQueue (Orchestrator)
 2. Events → SQL-based Event Storage → Dashboard/Monitoring
 3. Schedules → Scheduler → Task Creation → Queue
 
+
+### Project Setup with `uv`
+
+**Project Structure**:
+```
+omniq/
+├── pyproject.toml          # uv project configuration
+├── uv.lock                 # uv lock file
+├── README.md
+├── src/
+│   └── omniq/              # Source code directory
+│       ├── __init__.py
+│       ├── models/
+│       ├── storage/
+│       ├── serialization/
+│       ├── queue/
+│       ├── workers/
+│       ├── events/
+│       ├── dashboard/
+│       └── config/
+├── tests/
+│   ├── __init__.py
+│   ├── test_models/
+│   ├── test_storage/
+│   ├── test_serialization/
+│   ├── test_queue/
+│   ├── test_workers/
+│   ├── test_events/
+│   └── test_dashboard/
+└── docs/
+```
+
 ---
 
 ## 2. Module Architecture
@@ -85,6 +117,7 @@ TaskQueue (Orchestrator)
 - Define clear result states (pending, running, success, error)
 - Include TTL for automatic task expiration
 - Support schedule state management (active, paused)
+
 ### 2.2 Storage Interfaces (`omniq.storage`)
 **Purpose**: Abstract storage backends for pluggability
 
@@ -498,7 +531,7 @@ TaskQueue (Orchestrator)
 ### Dependency Management
 - Core library: `obstore`, `msgspec`, `dill`, `asyncio` (stdlib)
 - Worker dependencies: `gevent`, `concurrent.futures` (stdlib)
-- Storage backends: `asyncpg`, `aioredis`, `nats-py`
+- Storage backends: `asyncpg`, `redis`, `nats-py`
 - Dashboard: `litestar`, `htpy`, `datastar-py`
 - Development: `pytest`, `pytest-asyncio`, `ruff`, `mypy` (managed via uv)
 
@@ -531,6 +564,13 @@ TaskQueue (Orchestrator)
   - `OMNIQ_DASHBOARD_PORT`: Web dashboard port number
   - `OMNIQ_DASHBOARD_ENABLED`: Enable/disable dashboard
   - `OMNIQ_COMPONENT_LOG_LEVELS`: JSON string with per-component logging levels
+
+#### uv Project Management
+- Use `uv` for dependency management and project setup
+- Initialize the project with `uv init`
+- Manage dependencies with `uv add` and `uv remove`
+- Run commands in the virtual environment with `uv run`
+
 
 ### Context7 MCP and Deepwiki MCP Usage
 When implementing tasks involving unfamiliar libraries, use the context7 MCP and deepwiki MCP to:
@@ -625,3 +665,5 @@ task_id = queue.enqueue(my_task, args=(5, 10))
 result = queue.get_result(task_id)
 print(f"Result: {result}")  # Result: 15
 ```
+
+
