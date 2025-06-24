@@ -1,0 +1,36 @@
+[project]
+name = "omniq"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "dill>=0.4.0",
+    "msgspec>=0.19.0",
+    "obstore>=0.6.0",
+]
+
+[project.optional-dependencies]
+sqlite = [
+    "aiosqlite>=0.21.0",
+]
+gevent = [
+    "gevent>=25.5.1",
+]
+postgresql = [
+    "asyncpg>=0.30.0",
+]
+ui = [
+    "htpy>=25.6.2",
+    "jinja2>=3.1.6",
+    "litestar>=2.16.0",
+    "uvicorn>=0.34.3",
+]
+
+[dependency-groups]
+dev = [
+    "ipython>=9.3.0",
+    "mypy>=1.16.1",
+    "pytest>=8.4.1",
+    "ruff>=0.12.0",
+]

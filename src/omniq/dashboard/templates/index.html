@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <script src="/static/js/dashboard.js" defer></script>
+</head>
+<body>
+    <header>
+        <h1>OmniQ Dashboard</h1>
+    </header>
+    <main>
+        <section id="metrics">
+            <h2>Metrics</h2>
+            <div id="metrics-data">
+                <p>Total Tasks: <span id="total-tasks">0</span></p>
+                <p>Running Tasks: <span id="running-tasks">0</span></p>
+                <p>Completed Tasks: <span id="completed-tasks">0</span></p>
+                <p>Failed Tasks: <span id="failed-tasks">0</span></p>
+            </div>
+        </section>
+        <section id="tasks">
+            <h2>Tasks</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="task-list">
+                    {% for task in tasks %}
+                    <tr>
+                        <td>{{ task.id }}</td>
+                        <td>{{ task.name }}</td>
+                        <td>{{ task.status }}</td>
+                        <td>
+                            <button onclick="cancelTask('{{ task.id }}')">Cancel</button>
+                            <button onclick="viewResult('{{ task.id }}')">View Result</button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <button onclick="refreshTasks()">Refresh</button>
+            <button onclick="showEnqueueForm()">Enqueue Task</button>
+        </section>
+        <section id="schedules">
+            <h2>Schedules</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="schedule-list">
+                    <!-- Populated dynamically via JavaScript -->
+                </tbody>
+            </table>
+            <button onclick="refreshSchedules()">Refresh</button>
+            <button onclick="showScheduleForm()">Add Schedule</button>
+        </section>
+        <section id="forms" style="display: none;">
+            <div id="enqueue-form">
+                <h3>Enqueue New Task</h3>
+                <form onsubmit="enqueueTask(event)">
+                    <input type="text" id="task-name" placeholder="Task Name" required>
+                    <textarea id="task-data" placeholder="Task Data (JSON)" required></textarea>
+                    <button type="submit">Enqueue</button>
+                    <button type="button" onclick="hideForms()">Cancel</button>
+                </form>
+            </div>
+            <div id="schedule-form">
+                <h3>Add New Schedule</h3>
+                <form onsubmit="addSchedule(event)">
+                    <input type="text" id="schedule-name" placeholder="Schedule Name" required>
+                    <input type="text" id="schedule-cron" placeholder="Cron Expression" required>
+                    <textarea id="schedule-task-data" placeholder="Task Data (JSON)" required></textarea>
+                    <button type="submit">Add</button>
+                    <button type="button" onclick="hideForms()">Cancel</button>
+                </form>
+            </div>
+        </section>
+    </main>
+    <footer>
+        <p>OmniQ Task Queue Dashboard</p>
+    </footer>
+    <script>
+        // WebSocket for real-time metrics
+        const ws = new WebSocket('ws://' + window.location.host + '/ws');
+        ws.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+            document.getElementById('total-tasks').textContent = data.total_tasks;
+            document.getElementById('running-tasks').textContent = data.running_tasks;
+            document.getElementById('completed-tasks').textContent = data.completed_tasks;
+            document.getElementById('failed-tasks').textContent = data.failed_tasks;
+        };
+    </script>
+</body>
+</html>

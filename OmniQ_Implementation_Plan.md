@@ -1,4 +1,4 @@
-# Implementation Plan for the `OmniQ` Python Library
+# Complete Implementation Plan for the `OmniQ` Python Library
 
 This plan outlines the development of `OmniQ`, a modular Python task queue library designed for both local and distributed task processing with scheduling, task dependencies, callbacks, event logging, and a dashboard.
 
@@ -8,7 +8,7 @@ This plan outlines the development of `OmniQ`, a modular Python task queue libra
 
 ### Core Design Principles
 - **Dual Interface**: Provide both sync and async APIs throughout the library
-- **Separation of Concerns**: Task storage, result storage, and event logging are decoupled and independent
+- **Separation of Concerns**: Task queue, result storage, and event logging are decoupled and independent
 - **Interface-Driven**: All components implement common interfaces
 - **Storage Abstraction**: Use `obstore` for file and memory storage with extended capabilities
 - **Worker Flexibility**: Support multiple worker types (async, thread, process, gevent)
@@ -29,24 +29,24 @@ TaskQueue (Orchestrator)
 │   ├── Schedule (timing logic with pause/resume)
 │   └── TaskDependencyGraph (dependency resolution)
 ├── Storage Layer
-│   ├── Task Storage Interface
-│   │   ├── File Storage (using obstore for local/cloud files)
+│   ├── Task Queue Interface
+│   │   ├── File Queue (using obstore for memory, local, S3, Azure, GCP)
+│   │   ├── Memory Queue (using obstore MemoryStore)
+│   │   ├── SQLite Queue
+│   │   ├── PostgreSQL Queue
+│   │   ├── Redis Queue
+│   │   └── NATS Queue
+│   ├── Result Storage Interface (independent from task queue)
+│   │   ├── File Storage (using obstore for memory, local, S3, Azure, GCP)
 │   │   ├── Memory Storage (using obstore MemoryStore)
 │   │   ├── SQLite Storage
 │   │   ├── PostgreSQL Storage
 │   │   ├── Redis Storage
 │   │   └── NATS Storage
-│   ├── Result Storage Interface (independent from task storage)
-│   │   ├── File Storage (using obstore for local/cloud files)
-│   │   ├── Memory Storage (using obstore MemoryStore)
-│   │   ├── SQLite Storage
-│   │   ├── PostgreSQL Storage
-│   │   ├── Redis Storage
-│   │   └── NATS Storage
-│   └── Event Storage Interface (SQL-based only)
+│   └── Event Storage Interface (SQL-based or JSON files)
 │       ├── SQLite Storage
 │       ├── PostgreSQL Storage
-│       └── File Storage (JSON + DuckDB)
+│       └── File Storage (JSON files)
 ├── Execution Layer
 │   ├── Worker Types
 │   │   ├── Async Workers
@@ -60,10 +60,9 @@ TaskQueue (Orchestrator)
 ```
 
 ### Data Flow
-1.Tasks → Serialization → Task Storage Backend → TaskQueue → Worker Selection → Execution → Result Serialization → Result Storage Backend
-2. Events → SQL-based Event Storage → Dashboard/Monitoring
+1. Tasks → Serialization → Task Queue Backend → TaskQueue → Worker Selection → Execution → Result Serialization → Result Storage Backend
+2. Events → SQL-based Event Storage or JSON files → Dashboard/Monitoring
 3. Schedules → Scheduler → Task Creation → Queue
-
 
 ### Project Setup with `uv`
 
@@ -108,6 +107,7 @@ omniq/
 - `Schedule`: Timing logic (cron, interval, timestamp) with pause/resume capability
 - `TaskResult`: Execution outcome storage
 - `TaskEvent`: Event logging data model
+- `Settings`: Library settings without "OMNIQ_" prefix with environment variable overrides
 
 **Key Design Decisions**:
 - Use `msgspec.Struct` for high-performance serialization
@@ -117,37 +117,47 @@ omniq/
 - Define clear result states (pending, running, success, error)
 - Include TTL for automatic task expiration
 - Support schedule state management (active, paused)
+- Implement settings constants without "OMNIQ_" prefix, which can be overridden by environment variables with "OMNIQ_" prefix
 
 ### 2.2 Storage Interfaces (`omniq.storage`)
 **Purpose**: Abstract storage backends for pluggability
 
 **Components**:
-- `BaseTaskStorage`: Abstract interface for task storage with both sync and async methods
+- `BaseTaskQueue`: Abstract interface for task queue with both sync and async methods
 - `BaseResultStorage`: Abstract interface for result storage with both sync and async methods
-- `BaseEventStorage`: Abstract interface for event logging (SQL-based only)
-- Task and Result Storage implementations:
-  - `FileStorage`: Using `obstore` for local and cloud storage (S3, Azure, GCP)
+- `BaseEventStorage`: Abstract interface for event logging (SQL-based or JSON files)
+- Task Queue implementations:
+  - `FileQueue`: Using `obstore` for memory, local, S3, Azure, GCP storage with `base_dir` parameter
+  - `MemoryQueue`: Using `obstore.MemoryStore` instead of custom RAM storage
+  - `SQLiteQueue`: Local database storage
+  - `PostgresQueue`: Distributed database storage (async)
+  - `RedisQueue`: Distributed cache storage (async)
+  - `NATSQueue`: Message queue storage (async)
+- Result Storage implementations:
+  - `FileStorage`: Using `obstore` for memory, local, S3, Azure, GCP storage with `base_dir` parameter
   - `MemoryStorage`: Using `obstore.MemoryStore` instead of custom RAM storage
   - `SQLiteStorage`: Local database storage
   - `PostgresStorage`: Distributed database storage (async)
   - `RedisStorage`: Distributed cache storage (async)
   - `NATSStorage`: Message queue storage (async)
 - Event Storage implementations:
-  - `SQLiteEventStorage`: Local database event storage
-  - `PostgresEventStorage`: Distributed database event storage
-  - `FileEventStorage`: JSON files with DuckDB querying
+  - `SQLiteEventStorage`: Local database event storage without serialization
+  - `PostgresEventStorage`: Distributed database event storage without serialization
+  - `FileEventStorage`: JSON files stored using obstore with `base_dir` parameter
 
 **Key Design Decisions**:
-- Use `obstore` for file and memory storage backends
+- Use `obstore` for file and memory storage backends with `base_dir` parameter as prefix
+- Support memory, local, S3, Azure, and GCP storage locations through obstore
 - Implement both sync and async interfaces for all storage backends
 - Connection pooling for distributed backends
 - Transaction support for consistency
 - Bulk operations for performance
 - Allow independent selection of storage backends for tasks, results, and events
 - Default to using the same backend type for tasks and results if not explicitly specified
-- Restrict event storage to SQL-based backends for efficient querying
+- Store task events without serialization in SQLite, PostgreSQL, or as JSON files
 - Support task TTL enforcement and cleanup in all storage backends
 - Store schedule state (active/paused) in storage backends
+- Implement task locking mechanism in all queue backends to prevent duplicate execution
 
 ### 2.3 Serialization Layer (`omniq.serialization`)
 **Purpose**: Task and result serialization for storage and retrieval
@@ -218,11 +228,11 @@ omniq/
 - Non-blocking event logging with disable option
 - Structured logging with metadata
 - Configurable event retention policies
-- Runtime logging level adjustment (DEBUG, INFO, WARNING, ERROR, DISABLED)
+- Event logging automatically disabled when no event storage is configured
 - Support both sync and async event handling
-- SQL-based storage for efficient querying and analysis
+- Store task events without serialization in SQLite, PostgreSQL, or as JSON files
 - Track task TTL events and schedule state changes
-
+- Clear separation between library logging and task event logging
 
 ### 2.7 Dashboard (`omniq.dashboard`)
 **Purpose**: Web interface for monitoring and management
@@ -246,17 +256,20 @@ omniq/
 **Purpose**: Centralized configuration management
 
 **Components**:
-- `EnvConfig`: Environment variable configuration
+- `Settings`: Library settings constants without "OMNIQ_" prefix
+- `EnvConfig`: Environment variable configuration with "OMNIQ_" prefix
 - `ConfigProvider`: Configuration loading and validation
 - `LoggingConfig`: Logging configuration
 
 **Key Design Decisions**:
+- Define settings constants without "OMNIQ_" prefix that can be overridden by environment variables with "OMNIQ_" prefix
 - Environment variables as primary configuration method
 - Type conversion and validation for config values
 - Component-specific configuration sections
 - Runtime configuration changes
-- Independent configuration of task, result, and event storage
+- Independent configuration of task queue, result storage, and event storage
 - Configuration for default task TTL
+- Separate configuration for library logging and task event logging
 
 ---
 
@@ -265,10 +278,12 @@ omniq/
 ### Phase 1: Foundation (Weeks 1-2)
 
 **Task 1: Project Setup and Configuration**
-- Initialize project structure and dependencies
-- Implement environment variable configuration in `omniq.config`
+- Initialize project structure and dependencies using `uv`
+- Implement settings constants without "OMNIQ_" prefix in `omniq.models.Settings`
+- Add environment variable overrides with "OMNIQ_" prefix for all settings
+- Implement library logging configuration separate from task event logging
 - Set up logging configuration with levels and component-specific settings
-- Configure development tools (pytest, ruff, mypy)
+- Configure development tools (pytest, ruff, mypy) with `uv`
 - *Architecture*: Configuration foundation for all components
 
 **Task 2: Core Models**
@@ -287,19 +302,22 @@ omniq/
 - *Architecture*: Task and result serialization
 
 **Task 4: Storage Interfaces**
-- Define `BaseStorage` and `BaseEventStorage` with sync and async methods
-- Add result storage methods to `BaseStorage`
+- Define `BaseTaskQueue` and `BaseResultStorage` with sync and async methods
+- Define `BaseEventStorage` for event storage
+- Add result storage methods to `BaseResultStorage`
 - Implement connection management patterns
 - Add context manager support for both sync and async
 - Create storage factory for backend selection
 - *Architecture*: Enables pluggable backends
 
 **Task 5: ObStore Integration**
-- Implement file storage using `obstore` for local and cloud storage
-- Create memory storage using `obstore.MemoryStore`
-- Add support for different storage locations (S3, Azure, GCP)
+- Implement file queue using `obstore` for memory, local, S3, Azure, GCP storage
+- Create memory queue using `obstore.MemoryStore`
+- Implement file storage for results using `obstore` with `base_dir` parameter
+- Create memory storage for results using `obstore.MemoryStore`
+- Add support for different storage locations (memory, local, S3, Azure, GCP)
+- Use `base_dir` parameter as prefix when creating obstore Store instances
 - Implement both sync and async interfaces
-- Add result storage support in obstore backends
 - *Architecture*: Enhanced storage capabilities
 
 **Task 6: Worker Interface**
@@ -350,6 +368,7 @@ omniq/
 - Implement worker pool for task distribution
 - Add worker selection based on task requirements
 - Create monitoring and health checks
+- Implement task locking mechanism to prevent duplicate execution
 - *Architecture*: Worker orchestration
 
 ### Phase 3: Local Persistence (Week 4)
@@ -360,13 +379,16 @@ omniq/
 - Add connection pooling
 - Provide both sync and async interfaces
 - Implement result table structure and queries
+- Implement task locking mechanism in SQLite queue
 - *Architecture*: Production-ready local storage
 
 **Task 14: Event Storage**
-- Build SQL-based event storage
-- Implement JSON+DuckDB storage
+- Build SQL-based event storage without serialization
+- Implement JSON file storage for events using obstore
 - Add query optimization
 - Support configurable retention policies
+- Add automatic disabling when no event storage is configured
+- Store task events without serialization in SQLite, PostgreSQL, or as JSON files
 - *Architecture*: Monitoring foundation
 
 **Task 15: Result Management**
@@ -410,27 +432,30 @@ omniq/
 ### Phase 5: Distributed Storage (Week 6)
 
 **Task 20: PostgreSQL Backend**
-- Build robust async SQL storage
+- Build robust async SQL queue and storage
 - Implement connection pooling
 - Add transaction support
 - Create sync wrapper around async implementation
 - Implement result tables and queries
+- Implement task locking mechanism in PostgreSQL queue
 - *Architecture*: Enterprise-grade persistence
 
 **Task 21: Redis Backend**
-- Implement async Redis-based storage
+- Implement async Redis-based queue and storage
 - Add pub/sub for real-time updates
 - Support Redis Cluster
 - Create sync wrapper around async implementation
 - Implement result storage using hash structures with TTL
+- Implement task locking mechanism using Redis atomic operations
 - *Architecture*: Distributed cache storage
 
 **Task 22: NATS Backend**
-- Implement async NATS storage with JetStream
+- Implement async NATS queue with JetStream
 - Add subject-based routing
 - Support NATS clustering
 - Create sync wrapper around async implementation
 - Implement result storage using KV store or object store
+- Configure NATS queue groups for exclusive task consumption
 - *Architecture*: Cloud-native messaging
 
 ### Phase 6: Dashboard & Monitoring (Week 7)
@@ -449,6 +474,8 @@ omniq/
 - Build integration scenarios
 - Test worker types and storage backends
 - Test result storage and retrieval
+- Test task locking mechanism across different queue backends
+- Test file storage backends with different storage locations (memory, local, S3, Azure, GCP)
 - *Architecture*: Quality assurance
 
 **Task 25: Documentation & Examples**
@@ -474,9 +501,10 @@ omniq/
 - **Multiple Backends**: Support various storage options for different needs
 - **Unified Interface**: Common protocol for all storage backends
 - **Dual Interface**: Both sync and async methods for all storage operations
-- **Cloud Support**: Seamless support for S3, Azure Blob, and Google Cloud Storage
+- **Cloud Support**: Seamless support for S3, Azure Blob, and Google Cloud Storage through obstore
 - **Unified Result Storage**: Store results in the same backend as tasks
 - **Backend-Specific Optimizations**: Use specialized features of each backend for result storage
+- **Base Directory Support**: Use `base_dir` parameter as prefix for obstore Store instances
 
 ### Serialization Strategy
 - **Unified Approach**: Use the same serialization strategy for tasks and results
@@ -499,6 +527,8 @@ omniq/
 - **Structured Events**: Rich metadata for monitoring and debugging
 - **Configurable Levels**: Runtime adjustment of logging levels
 - **Dual Interface**: Both sync and async event handling
+- **No Serialization**: Store task events without serialization in SQLite, PostgreSQL, or as JSON files
+- **Separation**: Clear separation between library logging and task event logging
 
 ### Fault Tolerance
 - **Circuit Breaker**: Prevents cascade failures in distributed storage
@@ -527,6 +557,7 @@ omniq/
 - Result storage and retrieval tests
 - Schedule pause/resume functionality tests
 - Task TTL enforcement tests
+- File storage tests across different storage locations (memory, local, S3, Azure, GCP)
 
 ### Dependency Management
 - Core library: `obstore`, `msgspec`, `dill`, `asyncio` (stdlib)
@@ -539,41 +570,58 @@ omniq/
 
 ## 6. Development Guidelines
 
-### Environment Variable Configuration
-- Use environment variables for deployment-specific settings
+### Settings and Environment Variables
+- Define settings constants without "OMNIQ_" prefix in `omniq.models.Settings`
 - Support the following variables:
-  - `OMNIQ_LOG_LEVEL`: Set logging level (DEBUG, INFO, WARNING, ERROR, DISABLED)
-  - `OMNIQ_DISABLE_LOGGING`: Disable all logging when set to "1" or "true"
-  - `OMNIQ_TASK_STORAGE_TYPE`: Storage backend for tasks (file, memory, sqlite, postgres, redis, nats)
-  - `OMNIQ_TASK_STORAGE_URL`: Connection string for task storage backend
-  - `OMNIQ_RESULT_STORAGE_TYPE`: Storage backend for results (file, memory, sqlite, postgres, redis, nats)
-  - `OMNIQ_RESULT_STORAGE_URL`: Connection string for result storage backend
-  - `OMNIQ_EVENT_STORAGE_TYPE`: Storage backend for events (sqlite, postgres, file)
-  - `OMNIQ_EVENT_STORAGE_URL`: Connection string for event storage backend
-  - `OMNIQ_OBSTORE_URI`: URI for obstore (e.g., "file:///path", "s3://bucket", "memory://")
-  - `OMNIQ_DEFAULT_WORKER`: Default worker type (async, thread, process, gevent)
-  - `OMNIQ_MAX_WORKERS`: Maximum number of workers
-  - `OMNIQ_THREAD_WORKERS`: Thread pool size
-  - `OMNIQ_PROCESS_WORKERS`: Process pool size
-  - `OMNIQ_GEVENT_WORKERS`: Gevent pool size
-  - `OMNIQ_TASK_TIMEOUT`: Default task execution timeout in seconds
-  - `OMNIQ_TASK_TTL`: Default time-to-live for tasks in seconds
-  - `OMNIQ_RETRY_ATTEMPTS`: Default number of retry attempts
-  - `OMNIQ_RETRY_DELAY`: Default delay between retries in seconds
-  - `OMNIQ_RESULT_TTL`: Default time-to-live for task results in seconds
-  - `OMNIQ_DASHBOARD_PORT`: Web dashboard port number
-  - `OMNIQ_DASHBOARD_ENABLED`: Enable/disable dashboard
-  - `OMNIQ_COMPONENT_LOG_LEVELS`: JSON string with per-component logging levels
+  - `LOG_LEVEL` in settings, `OMNIQ_LOG_LEVEL` as env var: Set library logging level (DEBUG, INFO, WARNING, ERROR, DISABLED)
+  - `DISABLE_LOGGING` in settings, `OMNIQ_DISABLE_LOGGING` as env var: Disable all library logging when set to "1" or "true"
+  - `TASK_QUEUE_TYPE` in settings, `OMNIQ_TASK_QUEUE_TYPE` as env var: Queue backend for tasks (file, memory, sqlite, postgres, redis, nats)
+  - `TASK_QUEUE_URL` in settings, `OMNIQ_TASK_QUEUE_URL` as env var: Connection string for task queue backend
+  - `RESULT_STORAGE_TYPE` in settings, `OMNIQ_RESULT_STORAGE_TYPE` as env var: Storage backend for results (file, memory, sqlite, postgres, redis, nats)
+  - `RESULT_STORAGE_URL` in settings, `OMNIQ_RESULT_STORAGE_URL` as env var: Connection string for result storage backend
+  - `EVENT_STORAGE_TYPE` in settings, `OMNIQ_EVENT_STORAGE_TYPE` as env var: Storage backend for events (sqlite, postgres, file)
+  - `EVENT_STORAGE_URL` in settings, `OMNIQ_EVENT_STORAGE_URL` as env var: Connection string for event storage backend
+  - `OBSTORE_URI` in settings, `OMNIQ_OBSTORE_URI` as env var: URI for obstore (e.g., "file:///path", "s3://bucket", "memory://")
+  - `DEFAULT_WORKER` in settings, `OMNIQ_DEFAULT_WORKER` as env var: Default worker type (async, thread, process, gevent)
+  - `MAX_WORKERS` in settings, `OMNIQ_MAX_WORKERS` as env var: Maximum number of workers
+  - `THREAD_WORKERS` in settings, `OMNIQ_THREAD_WORKERS` as env var: Thread pool size
+  - `PROCESS_WORKERS` in settings, `OMNIQ_PROCESS_WORKERS` as env var: Process pool size
+  - `GEVENT_WORKERS` in settings, `OMNIQ_GEVENT_WORKERS` as env var: Gevent pool size
+  - `TASK_TIMEOUT` in settings, `OMNIQ_TASK_TIMEOUT` as env var: Default task execution timeout in seconds
+  - `TASK_TTL` in settings, `OMNIQ_TASK_TTL` as env var: Default time-to-live for tasks in seconds
+  - `RETRY_ATTEMPTS` in settings, `OMNIQ_RETRY_ATTEMPTS` as env var: Default number of retry attempts
+  - `RETRY_DELAY` in settings, `OMNIQ_RETRY_DELAY` as env var: Default delay between retries in seconds
+  - `RESULT_TTL` in settings, `OMNIQ_RESULT_TTL` as env var: Default time-to-live for task results in seconds
+  - `DASHBOARD_PORT` in settings, `OMNIQ_DASHBOARD_PORT` as env var: Web dashboard port number
+  - `DASHBOARD_ENABLED` in settings, `OMNIQ_DASHBOARD_ENABLED` as env var: Enable/disable dashboard
+  - `COMPONENT_LOG_LEVELS` in settings, `OMNIQ_COMPONENT_LOG_LEVELS` as env var: JSON string with per-component logging levels
 
-#### uv Project Management
-- Use `uv` for dependency management and project setup
-- Initialize the project with `uv init`
-- Manage dependencies with `uv add` and `uv remove`
-- Run commands in the virtual environment with `uv run`
+### Logging and Event Management
+- **Separate Library Logging from Task Events**: Library logging is for debugging and monitoring the library itself, while task events are for tracking task lifecycle
+- **Library Logging Configuration**: Set via function, settings constant, or environment variable
+- **Task Event Logging**: Automatically disabled when no event storage is configured
+- **Event Storage**: Only enabled when explicitly configured
 
+### Task Queue and Worker Coordination
+- **Task Locking**: Implement locking mechanism in all queue backends to prevent duplicate execution
+- **NATS Queue Groups**: Use NATS queue groups for exclusive task consumption
+- **Redis Atomic Operations**: Use Redis atomic operations for task locking
+- **Database Transactions**: Use database transactions and row locking for SQL-based queues
+- **Distributed Coordination**: Implement appropriate locking mechanisms for each queue backend type
 
-### Context7 MCP and Deepwiki MCP Usage
-When implementing tasks involving unfamiliar libraries, use the context7 MCP and deepwiki MCP to:
+### File Storage Implementation
+- Implement file storage for tasks, results, and events using obstore
+- Support the following storage locations:
+  - Memory: Using obstore MemoryStore
+  - Local: Using obstore LocalStore
+  - S3: Using obstore S3Store
+  - Azure: Using obstore AzureStore
+  - GCP: Using obstore GCPStore
+- Use `base_dir` parameter in initialization as the `prefix` argument when creating obstore Store instances
+- Store task events as JSON files when using File Storage Backend for events
+
+### Context7 and Deepwiki MCP Usage
+**THIS IS VERY IMPORTANT**: When implementing tasks involving unfamiliar libraries, use the context7 MCP. When the context7 MCP usage did not help, use the deepwiki MCP and ask accurate questions related to the libraries and patterns you are trying to implement, e.g., "How can I create a LocalStore in obstore? Show me a short example. Use deepwiki" The following libraries might be candidates for this:
 - **msgspec**: Get advanced serialization patterns and validation examples
 - **obstore**: Learn storage abstraction patterns and cloud storage integration
 - **gevent/greenlet**: Understand cooperative multitasking patterns
@@ -582,6 +630,11 @@ When implementing tasks involving unfamiliar libraries, use the context7 MCP and
 - **htpy**: Learn component-based UI development and templating
 - **datastar/datastar-py**: Understand reactive data binding and state management
 
+### uv Project Management
+- Use `uv` for dependency management and project setup
+- Initialize the project with `uv init`
+- Manage dependencies with `uv add` and `uv remove`
+- Run commands in the virtual environment with `uv run`
 
 ### Sync/Async Implementation Guidelines
 - **Async First**: Implement core functionality using async
@@ -601,24 +654,11 @@ When implementing tasks involving unfamiliar libraries, use the context7 MCP and
 ### Storage Implementation Guidelines
 - **Independent Configuration**: Allow separate configuration of task, result, and event storage
 - **Default Behavior**: Use the same backend type for tasks and results if not explicitly specified
-- **SQL-Based Event Storage**: Restrict event storage to SQL or structured storage options
+- **SQL-Based Event Storage**: Use SQL or JSON files for event storage without serialization
 - **Serialization Consistency**: Use the same serialization approach for tasks and results
 - **TTL Support**: Implement expiration for both tasks and results across all backends
 - **Backend-Specific Optimizations**: Use specialized features of each backend where appropriate
 - **Schedule State Management**: Store schedule state (active/paused) in all backends
-
-### Testing Guidelines
-- **Test-Driven Development**: Write unit tests concurrently with code development
-- **Test Coverage**: Aim for high test coverage across all components
-- **Test Categories**: 
-  - Unit tests for individual components
-  - Integration tests for backend interactions
-  - Functional tests for end-to-end workflows
-  - Performance tests for critical paths
-- **Test Fixtures**: Create reusable fixtures for common test scenarios
-- **Async Testing**: Use pytest-asyncio for testing async code
-- **Mock Dependencies**: Use mocks for external dependencies
-- **Continuous Testing**: Run tests automatically on code changes
 
 ### Example Usage (Async)
 ```python
@@ -626,7 +666,7 @@ from omniq import AsyncTaskQueue, Task
 
 # Create a task queue with async interface
 queue = AsyncTaskQueue(
-    storage_type="memory",
+    task_queue_type="memory",
     worker_type="async",
     max_workers=10
 )
@@ -649,7 +689,7 @@ from omniq import TaskQueue, Task
 
 # Create a task queue with sync interface
 queue = TaskQueue(
-    storage_type="sqlite",
+    task_queue_type="sqlite",
     worker_type="thread",
     max_workers=5
 )
@@ -665,5 +705,3 @@ task_id = queue.enqueue(my_task, args=(5, 10))
 result = queue.get_result(task_id)
 print(f"Result: {result}")  # Result: 15
 ```
-
-
