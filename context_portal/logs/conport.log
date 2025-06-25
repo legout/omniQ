@@ -85,3 +85,57 @@
 2025-06-23 12:33:32,872 - INFO - mcp.server.lowlevel.server - Processing request of type ListToolsRequest
 2025-06-23 12:33:32,875 - INFO - mcp.server.lowlevel.server - Processing request of type ListResourcesRequest
 2025-06-23 12:33:32,876 - INFO - mcp.server.lowlevel.server - Processing request of type ListResourceTemplatesRequest
+2025-06-25 14:51:48,432 - INFO - context_portal_mcp.main - File logging configured to: /Users/z0043ddz/coding/libs/omniQ/context_portal/logs/conport.log
+2025-06-25 14:51:48,432 - INFO - context_portal_mcp.main - Parsed CLI args: Namespace(host='127.0.0.1', port=8000, workspace_id='/Users/z0043ddz/coding/libs/omniQ', mode='stdio', log_file='logs/conport.log', log_level='INFO')
+2025-06-25 14:51:48,432 - INFO - context_portal_mcp.main - Starting ConPort in STDIO mode using FastMCP for initial CLI arg workspace_id: /Users/z0043ddz/coding/libs/omniQ
+2025-06-25 14:51:48,432 - INFO - context_portal_mcp.main - File logging configured to: /Users/z0043ddz/coding/libs/omniQ/context_portal/logs/conport.log
+2025-06-25 14:51:48,432 - INFO - context_portal_mcp.main - Parsed CLI args: Namespace(host='127.0.0.1', port=8000, workspace_id='/Users/z0043ddz/coding/libs/omniQ', mode='stdio', log_file='logs/conport.log', log_level='INFO')
+2025-06-25 14:51:48,432 - INFO - context_portal_mcp.main - Starting ConPort in STDIO mode using FastMCP for initial CLI arg workspace_id: /Users/z0043ddz/coding/libs/omniQ
+2025-06-25 14:51:48,432 - INFO - context_portal_mcp.main - STDIO mode: Using effective_workspace_id '/Users/z0043ddz/coding/libs/omniQ'. Database directory will be created on first actual DB use.
+2025-06-25 14:51:48,432 - INFO - context_portal_mcp.main - STDIO mode: Using effective_workspace_id '/Users/z0043ddz/coding/libs/omniQ'. Database directory will be created on first actual DB use.
+2025-06-25 14:51:48,433 - INFO - context_portal_mcp.main - File logging configured to: /Users/z0043ddz/coding/libs/omniQ/context_portal/logs/conport.log
+2025-06-25 14:51:48,433 - INFO - context_portal_mcp.main - Parsed CLI args: Namespace(host='127.0.0.1', port=8000, workspace_id='/Users/z0043ddz/coding/libs/omniQ', mode='stdio', log_file='logs/conport.log', log_level='INFO')
+2025-06-25 14:51:48,433 - INFO - context_portal_mcp.main - Starting ConPort in STDIO mode using FastMCP for initial CLI arg workspace_id: /Users/z0043ddz/coding/libs/omniQ
+2025-06-25 14:51:48,433 - INFO - context_portal_mcp.main - STDIO mode: Using effective_workspace_id '/Users/z0043ddz/coding/libs/omniQ'. Database directory will be created on first actual DB use.
+2025-06-25 14:51:48,436 - INFO - FastMCP.fastmcp.server.server - Starting MCP server 'ConPort' with transport 'stdio'
+2025-06-25 14:51:48,436 - INFO - FastMCP.fastmcp.server.server - Starting MCP server 'ConPort' with transport 'stdio'
+2025-06-25 14:51:48,436 - INFO - FastMCP.fastmcp.server.server - Starting MCP server 'ConPort' with transport 'stdio'
+2025-06-25 14:51:48,439 - INFO - context_portal_mcp.main - ConPort FastMCP server lifespan starting.
+2025-06-25 14:51:48,440 - INFO - context_portal_mcp.main - ConPort FastMCP server lifespan starting.
+2025-06-25 14:51:48,440 - INFO - context_portal_mcp.main - ConPort FastMCP server lifespan starting.
+2025-06-25 14:51:48,447 - INFO - mcp.server.lowlevel.server - Processing request of type ListToolsRequest
+2025-06-25 14:51:48,447 - INFO - mcp.server.lowlevel.server - Processing request of type ListToolsRequest
+2025-06-25 14:51:48,449 - INFO - mcp.server.lowlevel.server - Processing request of type ListToolsRequest
+2025-06-25 14:51:48,452 - INFO - mcp.server.lowlevel.server - Processing request of type ListResourcesRequest
+2025-06-25 14:51:48,452 - INFO - mcp.server.lowlevel.server - Processing request of type ListResourcesRequest
+2025-06-25 14:51:48,452 - INFO - mcp.server.lowlevel.server - Processing request of type ListResourcesRequest
+2025-06-25 14:51:48,453 - INFO - mcp.server.lowlevel.server - Processing request of type ListResourceTemplatesRequest
+2025-06-25 14:51:48,454 - INFO - mcp.server.lowlevel.server - Processing request of type ListResourceTemplatesRequest
+2025-06-25 14:51:48,454 - INFO - mcp.server.lowlevel.server - Processing request of type ListResourceTemplatesRequest
+2025-06-25 14:53:35,410 - INFO - context_portal_mcp.main - File logging configured to: /Users/z0043ddz/coding/libs/omniQ/context_portal/logs/conport.log
+2025-06-25 14:53:35,411 - INFO - context_portal_mcp.main - File logging configured to: /Users/z0043ddz/coding/libs/omniQ/context_portal/logs/conport.log
+2025-06-25 14:53:35,411 - INFO - context_portal_mcp.main - Parsed CLI args: Namespace(host='127.0.0.1', port=8000, workspace_id='/Users/z0043ddz/coding/libs/omniQ', mode='stdio', log_file='logs/conport.log', log_level='INFO')
+2025-06-25 14:53:35,411 - INFO - context_portal_mcp.main - Parsed CLI args: Namespace(host='127.0.0.1', port=8000, workspace_id='/Users/z0043ddz/coding/libs/omniQ', mode='stdio', log_file='logs/conport.log', log_level='INFO')
+2025-06-25 14:53:35,411 - INFO - context_portal_mcp.main - Starting ConPort in STDIO mode using FastMCP for initial CLI arg workspace_id: /Users/z0043ddz/coding/libs/omniQ
+2025-06-25 14:53:35,411 - INFO - context_portal_mcp.main - Starting ConPort in STDIO mode using FastMCP for initial CLI arg workspace_id: /Users/z0043ddz/coding/libs/omniQ
+2025-06-25 14:53:35,411 - INFO - context_portal_mcp.main - STDIO mode: Using effective_workspace_id '/Users/z0043ddz/coding/libs/omniQ'. Database directory will be created on first actual DB use.
+2025-06-25 14:53:35,411 - INFO - context_portal_mcp.main - STDIO mode: Using effective_workspace_id '/Users/z0043ddz/coding/libs/omniQ'. Database directory will be created on first actual DB use.
+2025-06-25 14:53:35,414 - INFO - FastMCP.fastmcp.server.server - Starting MCP server 'ConPort' with transport 'stdio'
+2025-06-25 14:53:35,414 - INFO - FastMCP.fastmcp.server.server - Starting MCP server 'ConPort' with transport 'stdio'
+2025-06-25 14:53:35,416 - INFO - context_portal_mcp.main - ConPort FastMCP server lifespan starting.
+2025-06-25 14:53:35,416 - INFO - context_portal_mcp.main - ConPort FastMCP server lifespan starting.
+2025-06-25 14:53:35,420 - INFO - mcp.server.lowlevel.server - Processing request of type ListToolsRequest
+2025-06-25 14:53:35,420 - INFO - mcp.server.lowlevel.server - Processing request of type ListToolsRequest
+2025-06-25 14:53:35,422 - INFO - mcp.server.lowlevel.server - Processing request of type ListResourcesRequest
+2025-06-25 14:53:35,423 - INFO - mcp.server.lowlevel.server - Processing request of type ListResourcesRequest
+2025-06-25 14:53:35,423 - INFO - mcp.server.lowlevel.server - Processing request of type ListResourceTemplatesRequest
+2025-06-25 14:53:35,423 - INFO - mcp.server.lowlevel.server - Processing request of type ListResourceTemplatesRequest
+2025-06-25 14:53:36,586 - INFO - context_portal_mcp.main - File logging configured to: /Users/z0043ddz/coding/libs/omniQ/context_portal/logs/conport.log
+2025-06-25 14:53:36,586 - INFO - context_portal_mcp.main - Parsed CLI args: Namespace(host='127.0.0.1', port=8000, workspace_id='/Users/z0043ddz/coding/libs/omniQ', mode='stdio', log_file='logs/conport.log', log_level='INFO')
+2025-06-25 14:53:36,586 - INFO - context_portal_mcp.main - Starting ConPort in STDIO mode using FastMCP for initial CLI arg workspace_id: /Users/z0043ddz/coding/libs/omniQ
+2025-06-25 14:53:36,586 - INFO - context_portal_mcp.main - STDIO mode: Using effective_workspace_id '/Users/z0043ddz/coding/libs/omniQ'. Database directory will be created on first actual DB use.
+2025-06-25 14:53:36,589 - INFO - FastMCP.fastmcp.server.server - Starting MCP server 'ConPort' with transport 'stdio'
+2025-06-25 14:53:36,591 - INFO - context_portal_mcp.main - ConPort FastMCP server lifespan starting.
+2025-06-25 14:53:36,595 - INFO - mcp.server.lowlevel.server - Processing request of type ListToolsRequest
+2025-06-25 14:53:36,597 - INFO - mcp.server.lowlevel.server - Processing request of type ListResourcesRequest
+2025-06-25 14:53:36,598 - INFO - mcp.server.lowlevel.server - Processing request of type ListResourceTemplatesRequest
