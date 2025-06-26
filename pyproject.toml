@@ -1,14 +1,60 @@
 [project]
 name = "omniq"
 version = "0.1.0"
-description = "Add your description here"
+description = "A Flexible Task Queue Library for Python"
+authors = [{ name = "Gemini Code Assist" }]
 readme = "README.md"
-authors = [
-    { name = "legout", email = "ligno.blades@gmail.com" }
+requires-python = ">=3.11"
+license = { text = "MIT" }
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
 ]
-requires-python = ">=3.13"
-dependencies = []
+dependencies = [
+    "fsspec",
+    "msgspec",
+    "dill",
+    "croniter",
+    "typer[all]",
+]
 
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+[project.optional-dependencies]
+s3 = ["s3fs"]
+gcs = ["gcsfs"]
+azure = ["adlfs"]
+postgres = ["asyncpg"]
+sqlite = ["aiosqlite"]
+redis = ["redis[hiredis]"]
+nats = ["nats-py"]
+gevent = ["gevent"]
+reload = ["watchfiles"]
+web = ["litestar[standard]", "htpy", "datastar-py", "uvicorn"] # Added uvicorn for running the dashboard
+all = [
+    "omniq[s3]",
+    "omniq[gcs]",
+    "omniq[azure]",
+    "omniq[postgres]",
+    "omniq[sqlite]",
+    "omniq[redis]",
+    "omniq[nats]",
+    "omniq[gevent]",
+    "omniq[reload]",
+    "omniq[web]",
+]
+
+[project.urls]
+Homepage = "https://github.com/gemini/omniq"
+Repository = "https://github.com/gemini/omniq"
+
+[project.scripts]
+omniq = "omniq.cli:main"
+
+[tool.uv]
+dev-dependencies = [
+    "ruff",
+    "mypy",
+    "pytest",
+    "pytest-asyncio",
+]

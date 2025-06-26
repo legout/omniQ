@@ -1,0 +1,1 @@
+# This directory will contain all tests for the OmniQ library.
