@@ -139,3 +139,106 @@
 2025-06-26 12:45:53,760 - INFO - mcp.server.lowlevel.server - Processing request of type ListToolsRequest
 2025-06-26 12:45:53,771 - INFO - mcp.server.lowlevel.server - Processing request of type ListResourcesRequest
 2025-06-26 12:45:53,775 - INFO - mcp.server.lowlevel.server - Processing request of type ListResourceTemplatesRequest
+2025-06-27 09:14:25,214 - INFO - context_portal_mcp.main - File logging configured to: /Users/z0043ddz/coding/libs/omniQ/context_portal/logs/conport.log
+2025-06-27 09:14:25,214 - INFO - context_portal_mcp.main - File logging configured to: /Users/z0043ddz/coding/libs/omniQ/context_portal/logs/conport.log
+2025-06-27 09:14:25,214 - INFO - context_portal_mcp.main - Parsed CLI args: Namespace(host='127.0.0.1', port=8000, workspace_id='/Users/z0043ddz/coding/libs/omniQ', mode='stdio', log_file='logs/conport.log', log_level='INFO')
+2025-06-27 09:14:25,214 - INFO - context_portal_mcp.main - Parsed CLI args: Namespace(host='127.0.0.1', port=8000, workspace_id='/Users/z0043ddz/coding/libs/omniQ', mode='stdio', log_file='logs/conport.log', log_level='INFO')
+2025-06-27 09:14:25,214 - INFO - context_portal_mcp.main - Starting ConPort in STDIO mode using FastMCP for initial CLI arg workspace_id: /Users/z0043ddz/coding/libs/omniQ
+2025-06-27 09:14:25,214 - INFO - context_portal_mcp.main - Starting ConPort in STDIO mode using FastMCP for initial CLI arg workspace_id: /Users/z0043ddz/coding/libs/omniQ
+2025-06-27 09:14:25,214 - INFO - context_portal_mcp.main - STDIO mode: Using effective_workspace_id '/Users/z0043ddz/coding/libs/omniQ'. Database directory will be created on first actual DB use.
+2025-06-27 09:14:25,214 - INFO - context_portal_mcp.main - STDIO mode: Using effective_workspace_id '/Users/z0043ddz/coding/libs/omniQ'. Database directory will be created on first actual DB use.
+2025-06-27 09:14:25,230 - INFO - FastMCP.fastmcp.server.server - Starting MCP server 'ConPort' with transport 'stdio'
+2025-06-27 09:14:25,230 - INFO - FastMCP.fastmcp.server.server - Starting MCP server 'ConPort' with transport 'stdio'
+2025-06-27 09:14:25,233 - INFO - context_portal_mcp.main - ConPort FastMCP server lifespan starting.
+2025-06-27 09:14:25,233 - INFO - context_portal_mcp.main - ConPort FastMCP server lifespan starting.
+2025-06-27 09:14:25,242 - INFO - mcp.server.lowlevel.server - Processing request of type ListToolsRequest
+2025-06-27 09:14:25,242 - INFO - mcp.server.lowlevel.server - Processing request of type ListToolsRequest
+2025-06-27 09:14:25,247 - INFO - mcp.server.lowlevel.server - Processing request of type ListResourcesRequest
+2025-06-27 09:14:25,247 - INFO - mcp.server.lowlevel.server - Processing request of type ListResourcesRequest
+2025-06-27 09:14:25,249 - INFO - mcp.server.lowlevel.server - Processing request of type ListResourceTemplatesRequest
+2025-06-27 09:14:25,249 - INFO - mcp.server.lowlevel.server - Processing request of type ListResourceTemplatesRequest
+2025-06-27 09:45:04,495 - INFO - context_portal_mcp.main - File logging configured to: /Users/z0043ddz/coding/libs/omniQ/context_portal/logs/conport.log
+2025-06-27 09:45:04,495 - INFO - context_portal_mcp.main - Parsed CLI args: Namespace(host='127.0.0.1', port=8000, workspace_id='/Users/z0043ddz/coding/libs/omniQ', mode='stdio', log_file='logs/conport.log', log_level='INFO')
+2025-06-27 09:45:04,495 - INFO - context_portal_mcp.main - Starting ConPort in STDIO mode using FastMCP for initial CLI arg workspace_id: /Users/z0043ddz/coding/libs/omniQ
+2025-06-27 09:45:04,495 - INFO - context_portal_mcp.main - STDIO mode: Using effective_workspace_id '/Users/z0043ddz/coding/libs/omniQ'. Database directory will be created on first actual DB use.
+2025-06-27 09:45:04,501 - INFO - context_portal_mcp.main - File logging configured to: /Users/z0043ddz/coding/libs/omniQ/context_portal/logs/conport.log
+2025-06-27 09:45:04,501 - INFO - context_portal_mcp.main - Parsed CLI args: Namespace(host='127.0.0.1', port=8000, workspace_id='/Users/z0043ddz/coding/libs/omniQ', mode='stdio', log_file='logs/conport.log', log_level='INFO')
+2025-06-27 09:45:04,501 - INFO - context_portal_mcp.main - Starting ConPort in STDIO mode using FastMCP for initial CLI arg workspace_id: /Users/z0043ddz/coding/libs/omniQ
+2025-06-27 09:45:04,501 - INFO - context_portal_mcp.main - STDIO mode: Using effective_workspace_id '/Users/z0043ddz/coding/libs/omniQ'. Database directory will be created on first actual DB use.
+2025-06-27 09:45:04,502 - INFO - FastMCP.fastmcp.server.server - Starting MCP server 'ConPort' with transport 'stdio'
+2025-06-27 09:45:04,505 - INFO - context_portal_mcp.main - ConPort FastMCP server lifespan starting.
+2025-06-27 09:45:04,505 - INFO - FastMCP.fastmcp.server.server - Starting MCP server 'ConPort' with transport 'stdio'
+2025-06-27 09:45:04,511 - INFO - context_portal_mcp.main - ConPort FastMCP server lifespan starting.
+2025-06-27 09:45:04,535 - INFO - mcp.server.lowlevel.server - Processing request of type ListToolsRequest
+2025-06-27 09:45:04,536 - INFO - mcp.server.lowlevel.server - Processing request of type ListToolsRequest
+2025-06-27 09:45:04,551 - INFO - mcp.server.lowlevel.server - Processing request of type ListResourcesRequest
+2025-06-27 09:45:04,554 - INFO - mcp.server.lowlevel.server - Processing request of type ListResourcesRequest
+2025-06-27 09:45:04,560 - INFO - mcp.server.lowlevel.server - Processing request of type ListResourceTemplatesRequest
+2025-06-27 09:45:04,563 - INFO - mcp.server.lowlevel.server - Processing request of type ListResourceTemplatesRequest
+2025-06-27 09:45:08,888 - INFO - context_portal_mcp.main - File logging configured to: /Users/z0043ddz/coding/libs/omniQ/context_portal/logs/conport.log
+2025-06-27 09:45:08,889 - INFO - context_portal_mcp.main - Parsed CLI args: Namespace(host='127.0.0.1', port=8000, workspace_id='/Users/z0043ddz/coding/libs/omniQ', mode='stdio', log_file='logs/conport.log', log_level='INFO')
+2025-06-27 09:45:08,889 - INFO - context_portal_mcp.main - Starting ConPort in STDIO mode using FastMCP for initial CLI arg workspace_id: /Users/z0043ddz/coding/libs/omniQ
+2025-06-27 09:45:08,890 - INFO - context_portal_mcp.main - STDIO mode: Using effective_workspace_id '/Users/z0043ddz/coding/libs/omniQ'. Database directory will be created on first actual DB use.
+2025-06-27 09:45:08,902 - INFO - FastMCP.fastmcp.server.server - Starting MCP server 'ConPort' with transport 'stdio'
+2025-06-27 09:45:08,913 - INFO - context_portal_mcp.main - ConPort FastMCP server lifespan starting.
+2025-06-27 09:45:08,922 - INFO - mcp.server.lowlevel.server - Processing request of type ListToolsRequest
+2025-06-27 09:45:08,929 - INFO - mcp.server.lowlevel.server - Processing request of type ListResourcesRequest
+2025-06-27 09:45:08,937 - INFO - mcp.server.lowlevel.server - Processing request of type ListResourceTemplatesRequest
+2025-06-27 10:16:09,225 - INFO - context_portal_mcp.main - File logging configured to: /Users/z0043ddz/coding/libs/omniQ/context_portal/logs/conport.log
+2025-06-27 10:16:09,225 - INFO - context_portal_mcp.main - Parsed CLI args: Namespace(host='127.0.0.1', port=8000, workspace_id='/Users/z0043ddz/coding/libs/omniQ', mode='stdio', log_file='logs/conport.log', log_level='INFO')
+2025-06-27 10:16:09,225 - INFO - context_portal_mcp.main - Starting ConPort in STDIO mode using FastMCP for initial CLI arg workspace_id: /Users/z0043ddz/coding/libs/omniQ
+2025-06-27 10:16:09,225 - INFO - context_portal_mcp.main - STDIO mode: Using effective_workspace_id '/Users/z0043ddz/coding/libs/omniQ'. Database directory will be created on first actual DB use.
+2025-06-27 10:16:09,226 - INFO - context_portal_mcp.main - File logging configured to: /Users/z0043ddz/coding/libs/omniQ/context_portal/logs/conport.log
+2025-06-27 10:16:09,226 - INFO - context_portal_mcp.main - Parsed CLI args: Namespace(host='127.0.0.1', port=8000, workspace_id='/Users/z0043ddz/coding/libs/omniQ', mode='stdio', log_file='logs/conport.log', log_level='INFO')
+2025-06-27 10:16:09,226 - INFO - context_portal_mcp.main - Starting ConPort in STDIO mode using FastMCP for initial CLI arg workspace_id: /Users/z0043ddz/coding/libs/omniQ
+2025-06-27 10:16:09,227 - INFO - context_portal_mcp.main - STDIO mode: Using effective_workspace_id '/Users/z0043ddz/coding/libs/omniQ'. Database directory will be created on first actual DB use.
+2025-06-27 10:16:09,234 - INFO - FastMCP.fastmcp.server.server - Starting MCP server 'ConPort' with transport 'stdio'
+2025-06-27 10:16:09,236 - INFO - FastMCP.fastmcp.server.server - Starting MCP server 'ConPort' with transport 'stdio'
+2025-06-27 10:16:09,247 - INFO - context_portal_mcp.main - ConPort FastMCP server lifespan starting.
+2025-06-27 10:16:09,248 - INFO - context_portal_mcp.main - ConPort FastMCP server lifespan starting.
+2025-06-27 10:16:09,277 - INFO - mcp.server.lowlevel.server - Processing request of type ListToolsRequest
+2025-06-27 10:16:09,277 - INFO - mcp.server.lowlevel.server - Processing request of type ListToolsRequest
+2025-06-27 10:16:09,364 - INFO - mcp.server.lowlevel.server - Processing request of type ListResourcesRequest
+2025-06-27 10:16:09,365 - INFO - mcp.server.lowlevel.server - Processing request of type ListResourcesRequest
+2025-06-27 10:16:09,371 - INFO - mcp.server.lowlevel.server - Processing request of type ListResourceTemplatesRequest
+2025-06-27 10:16:09,372 - INFO - mcp.server.lowlevel.server - Processing request of type ListResourceTemplatesRequest
+2025-06-27 10:16:11,228 - INFO - context_portal_mcp.main - File logging configured to: /Users/z0043ddz/coding/libs/omniQ/context_portal/logs/conport.log
+2025-06-27 10:16:11,228 - INFO - context_portal_mcp.main - Parsed CLI args: Namespace(host='127.0.0.1', port=8000, workspace_id='/Users/z0043ddz/coding/libs/omniQ', mode='stdio', log_file='logs/conport.log', log_level='INFO')
+2025-06-27 10:16:11,228 - INFO - context_portal_mcp.main - Starting ConPort in STDIO mode using FastMCP for initial CLI arg workspace_id: /Users/z0043ddz/coding/libs/omniQ
+2025-06-27 10:16:11,229 - INFO - context_portal_mcp.main - STDIO mode: Using effective_workspace_id '/Users/z0043ddz/coding/libs/omniQ'. Database directory will be created on first actual DB use.
+2025-06-27 10:16:11,231 - INFO - FastMCP.fastmcp.server.server - Starting MCP server 'ConPort' with transport 'stdio'
+2025-06-27 10:16:11,234 - INFO - context_portal_mcp.main - ConPort FastMCP server lifespan starting.
+2025-06-27 10:16:11,290 - INFO - mcp.server.lowlevel.server - Processing request of type ListToolsRequest
+2025-06-27 10:16:11,323 - INFO - mcp.server.lowlevel.server - Processing request of type ListResourcesRequest
+2025-06-27 10:16:11,324 - INFO - mcp.server.lowlevel.server - Processing request of type ListResourceTemplatesRequest
+2025-06-27 10:27:34,474 - INFO - context_portal_mcp.main - File logging configured to: /Users/z0043ddz/coding/libs/omniQ/context_portal/logs/conport.log
+2025-06-27 10:27:34,474 - INFO - context_portal_mcp.main - Parsed CLI args: Namespace(host='127.0.0.1', port=8000, workspace_id='/Users/z0043ddz/coding/libs/omniQ', mode='stdio', log_file='logs/conport.log', log_level='INFO')
+2025-06-27 10:27:34,474 - INFO - context_portal_mcp.main - Starting ConPort in STDIO mode using FastMCP for initial CLI arg workspace_id: /Users/z0043ddz/coding/libs/omniQ
+2025-06-27 10:27:34,474 - INFO - context_portal_mcp.main - STDIO mode: Using effective_workspace_id '/Users/z0043ddz/coding/libs/omniQ'. Database directory will be created on first actual DB use.
+2025-06-27 10:27:44,807 - INFO - context_portal_mcp.main - File logging configured to: /Users/z0043ddz/coding/libs/omniQ/context_portal/logs/conport.log
+2025-06-27 10:27:44,807 - INFO - context_portal_mcp.main - Parsed CLI args: Namespace(host='127.0.0.1', port=8000, workspace_id='/Users/z0043ddz/coding/libs/omniQ', mode='stdio', log_file='logs/conport.log', log_level='INFO')
+2025-06-27 10:27:44,807 - INFO - context_portal_mcp.main - Starting ConPort in STDIO mode using FastMCP for initial CLI arg workspace_id: /Users/z0043ddz/coding/libs/omniQ
+2025-06-27 10:27:44,807 - INFO - context_portal_mcp.main - STDIO mode: Using effective_workspace_id '/Users/z0043ddz/coding/libs/omniQ'. Database directory will be created on first actual DB use.
+2025-06-27 10:27:44,810 - INFO - FastMCP.fastmcp.server.server - Starting MCP server 'ConPort' with transport 'stdio'
+2025-06-27 10:27:44,812 - INFO - context_portal_mcp.main - ConPort FastMCP server lifespan starting.
+2025-06-27 10:27:44,816 - INFO - mcp.server.lowlevel.server - Processing request of type ListToolsRequest
+2025-06-27 10:27:44,819 - INFO - mcp.server.lowlevel.server - Processing request of type ListResourcesRequest
+2025-06-27 10:27:44,819 - INFO - mcp.server.lowlevel.server - Processing request of type ListResourceTemplatesRequest
+2025-06-27 10:30:04,800 - INFO - context_portal_mcp.main - File logging configured to: /Users/z0043ddz/coding/libs/omniQ/context_portal/logs/conport.log
+2025-06-27 10:30:04,800 - INFO - context_portal_mcp.main - Parsed CLI args: Namespace(host='127.0.0.1', port=8000, workspace_id='/Users/z0043ddz/coding/libs/omniQ', mode='stdio', log_file='logs/conport.log', log_level='INFO')
+2025-06-27 10:30:04,800 - INFO - context_portal_mcp.main - Starting ConPort in STDIO mode using FastMCP for initial CLI arg workspace_id: /Users/z0043ddz/coding/libs/omniQ
+2025-06-27 10:30:04,801 - INFO - context_portal_mcp.main - STDIO mode: Using effective_workspace_id '/Users/z0043ddz/coding/libs/omniQ'. Database directory will be created on first actual DB use.
+2025-06-27 10:30:04,803 - INFO - FastMCP.fastmcp.server.server - Starting MCP server 'ConPort' with transport 'stdio'
+2025-06-27 10:30:04,806 - INFO - context_portal_mcp.main - ConPort FastMCP server lifespan starting.
+2025-06-27 10:30:04,809 - INFO - mcp.server.lowlevel.server - Processing request of type ListToolsRequest
+2025-06-27 10:30:04,812 - INFO - mcp.server.lowlevel.server - Processing request of type ListResourcesRequest
+2025-06-27 10:30:04,812 - INFO - mcp.server.lowlevel.server - Processing request of type ListResourceTemplatesRequest
+2025-06-27 10:30:24,277 - INFO - context_portal_mcp.main - File logging configured to: /Users/z0043ddz/coding/libs/omniQ/context_portal/logs/conport.log
+2025-06-27 10:30:24,277 - INFO - context_portal_mcp.main - Parsed CLI args: Namespace(host='127.0.0.1', port=8000, workspace_id='/Users/z0043ddz/coding/libs/omniQ', mode='stdio', log_file='logs/conport.log', log_level='INFO')
+2025-06-27 10:30:24,277 - INFO - context_portal_mcp.main - Starting ConPort in STDIO mode using FastMCP for initial CLI arg workspace_id: /Users/z0043ddz/coding/libs/omniQ
+2025-06-27 10:30:24,277 - INFO - context_portal_mcp.main - STDIO mode: Using effective_workspace_id '/Users/z0043ddz/coding/libs/omniQ'. Database directory will be created on first actual DB use.
+2025-06-27 10:30:24,280 - INFO - FastMCP.fastmcp.server.server - Starting MCP server 'ConPort' with transport 'stdio'
+2025-06-27 10:30:24,282 - INFO - context_portal_mcp.main - ConPort FastMCP server lifespan starting.
+2025-06-27 10:30:24,285 - INFO - mcp.server.lowlevel.server - Processing request of type ListToolsRequest
+2025-06-27 10:30:24,287 - INFO - mcp.server.lowlevel.server - Processing request of type ListResourcesRequest
+2025-06-27 10:30:24,287 - INFO - mcp.server.lowlevel.server - Processing request of type ListResourceTemplatesRequest
