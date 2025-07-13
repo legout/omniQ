@@ -174,8 +174,15 @@ src/omniq/
 
 ## Storage Backends
 
+**Primary Implementation:**
+- **SQLite**: Primary backend using `aiosqlite` for async operations
+  - Supports both in-memory (`:memory:`) and file-based storage
+  - Single unified implementation for memory and persistent storage
+  - ACID compliance, WAL mode for better concurrency
+  - Comprehensive indexing for performance
+
+**Future Implementations:**
 - **File**: Uses `fsspec` with support for local, memory, S3, Azure, GCP
-- **SQLite**: Using `aiosqlite` for async operations
 - **PostgreSQL**: Using `asyncpg` for async operations  
 - **Redis**: Using `redis.asyncio` for async operations
 - **NATS**: Using `nats.aio` for async operations
@@ -188,73 +195,81 @@ Environment variables use `OMNIQ_` prefix to override settings constants:
 
 **Key Configuration Variables:**
 - `OMNIQ_LOG_LEVEL`: Library logging level (DEBUG, INFO, WARNING, ERROR, DISABLED)
-- `OMNIQ_TASK_QUEUE_TYPE`: Queue backend (file, memory, sqlite, postgres, redis, nats)
-- `OMNIQ_RESULT_STORAGE_TYPE`: Result storage backend 
-- `OMNIQ_EVENT_STORAGE_TYPE`: Event storage backend (sqlite, postgres, file)
+- `OMNIQ_TASK_QUEUE_TYPE`: Queue backend (defaults to "sqlite", supports ":memory:" or file paths)
+- `OMNIQ_RESULT_STORAGE_TYPE`: Result storage backend (defaults to "sqlite")
+- `OMNIQ_EVENT_STORAGE_TYPE`: Event storage backend (defaults to "sqlite")
 - `OMNIQ_DEFAULT_WORKER`: Default worker type (async, thread, process, gevent)
 - `OMNIQ_TASK_TTL`: Default time-to-live for tasks in seconds
 - `OMNIQ_RESULT_TTL`: Default time-to-live for task results in seconds
+- `OMNIQ_DATABASE_URL`: SQLite database path (":memory:" for in-memory, file path for persistent)
 
 ## Current State
 
-The project is in early development with:
-- Project structure defined in implementation plan
-- Basic pyproject.toml configuration
-- Empty src/omniq/ directory with py.typed marker
-- Comprehensive architecture documentation
+The project has a complete foundational implementation:
+- ✅ **Complete core models** (Task, Schedule, TaskResult, TaskEvent, Config)
+- ✅ **Dual serialization system** (msgspec + dill with intelligent detection)  
+- ✅ **Storage abstractions** with SQLite backend implementation
+- ✅ **Comprehensive configuration system** with environment variable support
+- ✅ **Event logging and processing** for full task lifecycle monitoring
+- ✅ **Multi-worker execution** (async, thread, process, gevent)
+- ✅ **Core orchestrator** (AsyncOmniQ and OmniQ) with component coordination
+- ✅ **SQLite backend** supporting both in-memory and file-based storage
+- ✅ **Project structure** with proper packaging and dependencies
 
-## Implementation Priority
+## Architecture Status
 
-Based on the implementation plan, focus on these modules in order:
+**✅ Completed Core Implementation:**
 
-1. **Core Foundation** (`omniq.models`)
+1. **Core Foundation** (`omniq.models`) ✅
    - Task model with metadata, dependencies, callbacks, and TTL
    - Schedule model with timing logic and pause/resume capability
    - TaskResult model for execution outcomes
    - TaskEvent model for lifecycle logging
    - Configuration models using msgspec.Struct
 
-2. **Serialization Layer** (`omniq.serialization`)
+2. **Serialization Layer** (`omniq.serialization`) ✅
    - SerializationDetector for type compatibility
    - MsgspecSerializer for high-performance serialization
    - DillSerializer for complex Python objects
    - SerializationManager for orchestration
 
-3. **Storage Interfaces** (`omniq.storage.base`)
-   - BaseTaskQueue abstract interface
-   - BaseResultStorage abstract interface 
-   - BaseEventStorage abstract interface
-   - Both sync and async method definitions
+3. **Storage System** (`omniq.storage`) ✅
+   - BaseTaskQueue, BaseResultStorage, BaseEventStorage abstract interfaces
+   - SQLiteTaskQueue, SQLiteResultStorage, SQLiteEventStorage implementations
+   - Support for both `:memory:` and file-based SQLite databases
+   - Sync wrapper classes using anyio
 
-4. **Configuration System** (`omniq.config`)
+4. **Configuration System** (`omniq.config`) ✅
    - Settings constants without "OMNIQ_" prefix
    - Environment variable handling with "OMNIQ_" prefix
    - ConfigProvider for loading and validation
    - LoggingConfig for logging setup
 
-5. **Event System** (`omniq.events`)
-   - AsyncEventLogger core implementation
-   - EventLogger sync wrapper
-   - AsyncEventProcessor core implementation
-   - EventProcessor sync wrapper
-   - Event types: ENQUEUED, EXECUTING, COMPLETE, ERROR, etc.
+5. **Event System** (`omniq.events`) ✅
+   - AsyncEventLogger with batching and background flushing
+   - AsyncEventProcessor with real-time event handling
+   - Sync wrappers using anyio
+   - Comprehensive task lifecycle event types
 
-6. **Worker Layer** (`omniq.workers`)
-   - AsyncWorker core implementation
-   - Worker sync wrappers (Thread, Process, Gevent)
+6. **Worker Layer** (`omniq.workers`) ✅
+   - AsyncWorker for native async execution
+   - ThreadWorker for thread pool execution
+   - ProcessWorker for process pool execution  
+   - GeventWorker for gevent execution (optional)
    - Support for both sync and async tasks
-   - Multiple queue processing with priority ordering
 
-7. **Core Orchestrator** (`omniq.core`)
+7. **Core Orchestrator** (`omniq.core`) ✅
    - AsyncOmniQ main async implementation
-   - OmniQ sync wrapper
+   - OmniQ sync wrapper using anyio
    - Component coordination and lifecycle management
-   - Scheduler integration
+   - Scheduler integration and health monitoring
 
-8. **Storage Backends Implementation** (after core is complete)
-   - File and memory backends (`omniq.queue`, `omniq.storage`)
-   - SQLite, PostgreSQL, Redis, NATS backends
-   - Backend abstractions (`omniq.backend`)
+**🚧 Next Implementation Steps:**
+
+8. **Additional Storage Backends** (future)
+   - File backend using fsspec for cloud storage
+   - PostgreSQL, Redis, NATS backends
+   - Backend factory system
 
 **Key Implementation Guidelines:**
 - Implement async core first, then sync wrappers
