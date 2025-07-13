@@ -1,19 +1,5 @@
 {
   "mcpServers": {
-    "conport": {
-      "command": "uvx",
-      "args": [
-        "--from",
-        "context-portal-mcp",
-        "conport-mcp",
-        "--mode",
-        "stdio",
-        "--workspace_id",
-        "${workspaceFolder}"
-      ],
-      "disabled": false,
-      "alwaysAllow": []
-    },
     "memory": {
       "command": "docker",
       "args": [
@@ -23,7 +9,10 @@
         "claude-memory:/app/dist",
         "--rm",
         "mcp/memory"
-      ]
+      ],
+      "env": {
+        "MEMORY_FILE_PATH": "/Users/z0043ddz/coding/libs/omniQ/memory/mem.json"
+      }
     }
   }
 }

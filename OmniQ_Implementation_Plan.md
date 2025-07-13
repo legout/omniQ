@@ -1,52 +1,162 @@
-# Enhanced Implementation Plan for the `OmniQ` Python Library
+# OmniQ: A Flexible Task Queue Library for Python
 
-This plan outlines the development of `OmniQ`, a modular Python task queue library designed for both local and distributed task processing with scheduling, task dependencies, callbacks, event logging, and a dashboard.
+## Project Description
 
----
+OmniQ is a modular Python task queue library designed for both local and distributed task processing. It provides a flexible architecture that supports multiple storage backends, worker types, and configuration methods. OmniQ enables developers to easily implement task queuing, scheduling, and distributed processing in their applications with both synchronous and asynchronous interfaces.
 
-## 1. Architecture Overview
+**Key Features:**
 
-### Core Design Principles
-- **Dual Interface**: Provide both sync and async APIs throughout the library
-- **Separation of Concerns**: Task storage, result storage, and event logging are decoupled and independent
-- **Interface-Driven**: All components implement common interfaces
-- **Storage Abstraction**: Use `obstore` for file and memory storage with extended capabilities
-- **Worker Flexibility**: Support multiple worker types (async, thread, process, gevent)
-- **Serialization Strategy**: Intelligent serialization with `msgspec` and `dill` for task enqueuing/dequeuing
-- **Storage Independence**: Allow independent selection of storage backends for tasks, results, and events
-- **SQL-Based Event Logging**: Use SQL or structured storage for efficient event querying and analysis
-- **Task Lifecycle Management**: Support task TTL and automatic cleanup of expired tasks
-- **Flexible Scheduling**: Enable pausing and resuming of scheduled tasks
+- Multiple storage backends (File, Memory, SQLite, PostgreSQL, Redis, NATS)
+- Multiple worker types (Async, Thread Pool, Process Pool, Gevent)
+- Support for both synchronous and asynchronous tasks and interfaces
+- Task scheduling with cron and interval patterns (including pause/resume capability)
+- Task dependencies and workflow management
+- Task lifecycle event logging
+- Result storage and retrieval
+- Flexible configuration via code, objects, dictionaries, YAML files, or environment variables
+- Multiple named queues with priority ordering
+- Cloud storage support through fsspec (S3, Azure, GCP)
+- TTL for tasks and results with automatic cleanup
+
+## Python Libraries Overview
+
+### Core Dependencies
+
+- **msgspec**: High-performance serialization and validation
+- **dill**: Advanced object serialization beyond pickle
+- **fsspec**: Filesystem abstraction for local and cloud storage
+- **pyyaml**: YAML file parsing for configuration
+- **python-dateutil**: Date and time utilities for scheduling
+- **anyio**: Synchronous wrappers library
+- **croniter**: Cron-style scheduling implementation
+
+### Storage Backends
+
+- **aiosqlite**: Async SQLite database interface
+- **asyncpg**: Async PostgreSQL database interface
+- **redis**: Redis client (includes redis.asyncio)
+- **nats-py**: NATS messaging system client
+
+### Cloud Storage (Optional)
+
+- **s3fs**: S3 filesystem implementation for fsspec
+- **adlfs**: Azure Data Lake filesystem implementation for fsspec
+- **gcsfs**: Google Cloud Storage filesystem implementation for fsspec
+
+### Worker Implementations
+
+- **gevent**: Coroutine-based concurrency library for Gevent worker
+
+### Development Dependencies
+
+- **pytest**: Testing framework
+- **pytest-asyncio**: Async testing support for pytest
+- **pytest-cov**: Test coverage reporting
+- **black**: Code formatting
+- **isort**: Import sorting
+- **mypy**: Static type checking
+- **ruff**: Fast Python linter
+
+## Core Design Principles
+
+- **Async First, Sync Wrapped:** The core library is implemented asynchronously for maximum performance, with synchronous wrappers providing a convenient blocking API
+- **Separation of Concerns:** Task queue, result storage, and event logging are decoupled and independent
+- **Interface-Driven:** All components implement common interfaces
+- **Storage Abstraction:** Use `fsspec` for file and memory storage with extended capabilities
+- **Worker Flexibility:** Support multiple worker types (async, thread, process, gevent)
+- **Serialization Strategy:** Intelligent serialization with `msgspec` and `dill` for task enqueuing/dequeuing
+- **Storage Independence:** Allow independent selection of storage backends for tasks, results, and events
+- **SQL-Based Event Logging:** Use SQL or structured storage for efficient event querying and analysis
+- **Task Lifecycle Management:** Support task TTL and automatic cleanup of expired tasks
+- **Flexible Scheduling:** Enable pausing and resuming of scheduled tasks
+
+## Architecture Overview
+
+```mermaid
+flowchart TD
+    A[OmniQ] --> B[Task Queue]
+    A --> C[Result Storage]
+    A --> D[Event Storage]
+    A --> E[Worker]
+    
+    B --> B1[File Queue]
+    B --> B2[Memory Queue]
+    B --> B3[SQLite Queue]
+    B --> B4[PostgreSQL Queue]
+    B --> B5[Redis Queue]
+    B --> B6[NATS Queue]
+    
+    C --> C1[File Storage]
+    C --> C2[Memory Storage]
+    C --> C3[SQLite Storage]
+    C --> C4[PostgreSQL Storage]
+    C --> C5[Redis Storage]
+    C --> C6[NATS Storage]
+    
+    D --> D1[SQLite Storage]
+    D --> D2[PostgreSQL Storage]
+    D --> D3[File Storage]
+    
+    E --> E1[Async Worker]
+    E --> E2[Thread Pool Worker]
+    E --> E3[Process Pool Worker]
+    E --> E4[Gevent Pool Worker]
+    
+    F[Backend] --> F1[File Backend]
+    F --> F2[SQLite Backend]
+    F --> F3[PostgreSQL Backend]
+    F --> F4[Redis Backend]
+    F --> F5[NATS Backend]
+    
+    F1 --> B1
+    F1 --> C1
+    F1 --> D3
+    
+    F2 --> B3
+    F2 --> C3
+    F2 --> D1
+    
+    F3 --> B4
+    F3 --> C4
+    F3 --> D2
+    
+    F4 --> B5
+    F4 --> C5
+    
+    F5 --> B6
+    F5 --> C6
+```
 
 ### Enhanced System Architecture
+
 ```
 TaskQueue (Orchestrator)
 ├── Interface Layer
-│   ├── Async API
-│   └── Sync API (wrappers around async)
+│   ├── Async API (Core Implementation)
+│   └── Sync API (Wrappers around async)
 ├── Task Management Layer
 │   ├── Task (data model with TTL)
 │   ├── Schedule (timing logic with pause/resume)
 │   └── TaskDependencyGraph (dependency resolution)
 ├── Storage Layer
-│   ├── Task Storage Interface
-│   │   ├── File Storage (using obstore for local/cloud files)
-│   │   ├── Memory Storage (using obstore MemoryStore)
+│   ├── Task Queue Interface
+│   │   ├── File Queue (using fsspec with DirFileSystem for memory, local, S3, Azure, GCP)
+│   │   ├── Memory Queue (using fsspec MemoryFileSystem)
+│   │   ├── SQLite Queue
+│   │   ├── PostgreSQL Queue
+│   │   ├── Redis Queue
+│   │   └── NATS Queue
+│   ├── Result Storage Interface (independent from task queue)
+│   │   ├── File Storage (using fsspec for memory, local, S3, Azure, GCP)
+│   │   ├── Memory Storage (using fsspec MemoryFileSystem)
 │   │   ├── SQLite Storage
 │   │   ├── PostgreSQL Storage
 │   │   ├── Redis Storage
 │   │   └── NATS Storage
-│   ├── Result Storage Interface (independent from task storage)
-│   │   ├── File Storage (using obstore for local/cloud files)
-│   │   ├── Memory Storage (using obstore MemoryStore)
-│   │   ├── SQLite Storage
-│   │   ├── PostgreSQL Storage
-│   │   ├── Redis Storage
-│   │   └── NATS Storage
-│   └── Event Storage Interface (SQL-based only)
+│   └── Event Storage Interface (SQL-based or JSON files)
 │       ├── SQLite Storage
 │       ├── PostgreSQL Storage
-│       └── File Storage (JSON + DuckDB)
+│       └── File Storage (JSON files)
 ├── Execution Layer
 │   ├── Worker Types
 │   │   ├── Async Workers
@@ -55,20 +165,318 @@ TaskQueue (Orchestrator)
 │   │   └── Gevent Pool Workers
 │   ├── Task Execution
 │   └── CallbackManager (lifecycle hooks)
-└── Dashboard Layer
-    └── WebInterface (Litestar + htpy + datastar-py)
+```
+
+### Component Architecture
+
+```mermaid
+flowchart TD
+    subgraph "OmniQ Interface"
+        OmniQ[OmniQ Class]
+    end
+    
+    subgraph "Task Queue Layer"
+        TQ[Task Queue Interface]
+        TQ --> FQ[File Queue]
+        TQ --> MQ[Memory Queue]
+        TQ --> SQ[SQLite Queue]
+        TQ --> PQ[PostgreSQL Queue]
+        TQ --> RQ[Redis Queue]
+        TQ --> NQ[NATS Queue]
+    end
+    
+    subgraph "Worker Layer"
+        W[Worker Interface]
+        W --> AW[Async Worker]
+        W --> TW[Thread Pool Worker]
+        W --> PW[Process Pool Worker]
+        W --> GW[Gevent Pool Worker]
+    end
+    
+    subgraph "Storage Layer"
+        RS[Result Storage Interface]
+        RS --> FRS[File Result Storage]
+        RS --> MRS[Memory Result Storage]
+        RS --> SRS[SQLite Result Storage]
+        RS --> PRS[PostgreSQL Result Storage]
+        RS --> RRS[Redis Result Storage]
+        RS --> NRS[NATS Result Storage]
+        
+        ES[Event Storage Interface]
+        ES --> SES[SQLite Event Storage]
+        ES --> PES[PostgreSQL Event Storage]
+        ES --> FES[File Event Storage]
+    end
+    
+    subgraph "Configuration Layer"
+        Config[Configuration System]
+        Config --> YamlConfig[YAML Config]
+        Config --> EnvConfig[Environment Variables]
+        Config --> DictConfig[Dictionary Config]
+        Config --> ObjectConfig[Object Config]
+    end
+    
+    subgraph "Backend Layer"
+        Backend[Backend Interface]
+        Backend --> FB[File Backend]
+        Backend --> SB[SQLite Backend]
+        Backend --> PB[PostgreSQL Backend]
+        Backend --> RB[Redis Backend]
+        Backend --> NB[NATS Backend]
+    end
+    
+    OmniQ --> TQ
+    OmniQ --> W
+    OmniQ --> RS
+    OmniQ --> ES
+    OmniQ --> Config
+    
+    Backend --> TQ
+    Backend --> RS
+    Backend --> ES
+    
+    TQ <--> W
+    W --> RS
+    W --> ES
 ```
 
 ### Data Flow
-1.Tasks → Serialization → Task Storage Backend → TaskQueue → Worker Selection → Execution → Result Serialization → Result Storage Backend
-2. Events → SQL-based Event Storage → Dashboard/Monitoring
-3. Schedules → Scheduler → Task Creation → Queue
 
----
+```mermaid
+sequenceDiagram
+    participant Client
+    participant OmniQ
+    participant Queue as Task Queue
+    participant Worker
+    participant ResultStore as Result Storage
+    participant EventStore as Event Storage
+    
+    Client->>OmniQ: enqueue(task)
+    OmniQ->>Queue: enqueue(task)
+    Queue-->>OmniQ: task_id
+    OmniQ-->>Client: task_id
+    
+    Note over Queue: Task stored with queue name
+    
+    Worker->>Queue: dequeue(queues=["high", "medium", "low"])
+    Queue-->>Worker: task
+    
+    Worker->>EventStore: log(EXECUTING)
+    Worker->>Worker: execute(task)
+    Worker->>ResultStore: store(result)
+    Worker->>EventStore: log(COMPLETED)
+    
+    Client->>OmniQ: get_result(task_id)
+    OmniQ->>ResultStore: get(task_id)
+    ResultStore-->>OmniQ: result
+    OmniQ-->>Client: result
+```
 
-## 2. Module Architecture
+### Project Structure
 
-### 2.1 Core Models (`omniq.models`)
+```
+omniq/
+├── pyproject.toml          # uv project configuration
+├── uv.lock                 # uv lock file
+├── README.md
+├── src/
+│   └── omniq/              # Source code directory
+│       ├── __init__.py
+│       ├── models/         # Data models and configuration
+│       │   ├── __init__.py
+│       │   ├── task.py
+│       │   ├── schedule.py
+│       │   ├── result.py
+│       │   ├── event.py
+│       │   └── config.py
+│       ├── storage/        # Storage implementations
+│       │   ├── __init__.py
+│       │   ├── base.py
+│       │   ├── file.py
+│       │   ├── memory.py
+│       │   ├── sqlite.py
+│       │   ├── postgres.py
+│       │   ├── redis.py
+│       │   └── nats.py
+│       ├── serialization/  # Serialization utilities
+│       │   ├── __init__.py
+│       │   ├── base.py
+│       │   ├── msgspec.py
+│       │   └── dill.py
+│       ├── queue/          # Task queue implementations
+│       │   ├── __init__.py
+│       │   ├── base.py
+│       │   ├── file.py
+│       │   ├── memory.py
+│       │   ├── sqlite.py
+│       │   ├── postgres.py
+│       │   ├── redis.py
+│       │   └── nats.py
+│       ├── workers/        # Worker implementations
+│       │   ├── __init__.py
+│       │   ├── base.py
+│       │   ├── async.py
+│       │   ├── thread.py
+│       │   ├── process.py
+│       │   └── gevent.py
+│       ├── events/         # Event system
+│       │   ├── __init__.py
+│       │   ├── logger.py
+│       │   └── processor.py
+│       ├── config/         # Configuration system
+│       │   ├── __init__.py
+│       │   ├── settings.py
+│       │   ├── env.py
+│       │   └── loader.py
+│       ├── backend/        # Backend implementations
+│       │   ├── __init__.py
+│       │   ├── base.py
+│       │   ├── file.py
+│       │   ├── sqlite.py
+│       │   ├── postgres.py
+│       │   ├── redis.py
+│       │   └── nats.py
+│       └── core.py         # Core OmniQ implementation
+├── tests/
+│   ├── __init__.py
+│   ├── test_models/
+│   ├── test_storage/
+│   ├── test_serialization/
+│   ├── test_queue/
+│   ├── test_workers/
+│   ├── test_events/
+│   ├── test_config/
+│   ├── test_backend/
+│   └── test_core/
+└── docs/
+    ├── index.md
+    ├── getting_started.md
+    ├── configuration.md
+    ├── task_queues.md
+    ├── workers.md
+    ├── storage.md
+    ├── events.md
+    ├── backends.md
+    └── examples.md
+```
+
+## Key Design Decisions
+
+### Async First, Sync Wrapped Implementation
+
+OmniQ adopts an "Async First, Sync Wrapped" approach for maximum performance and flexibility:
+
+- **Core Implementation**: All core functionality is implemented using async/await
+- **Sync Wrappers**: Synchronous interfaces are implemented as wrappers around async methods
+- **Performance**: This approach optimizes for I/O-bound operations common in task queues
+- **Consistency**: Maintains a single source of truth for each component's logic
+- **Implementation Pattern**:
+  ```python
+  # Async core implementation
+  class AsyncTaskQueue:
+      async def enqueue(self, task):
+          # Async implementation
+      
+      async def __aenter__(self):
+          await self.connect()
+          return self
+  
+  # Sync wrapper
+  class TaskQueue:
+      def __init__(self, *args, **kwargs):
+          self._async_queue = AsyncTaskQueue(*args, **kwargs)
+      
+      def enqueue(self, task):
+          return anyio.from_thread.run(self._async_queue.enqueue(task))
+      
+      def __enter__(self):
+          anyio.from_thread.run(self._async_queue.__aenter__())
+          return self
+  ```
+
+### Component Separation
+
+OmniQ separates task queue, result storage, event storage, and workers into independent components. This allows for flexible configuration and deployment options:
+
+- Use different storage backends for tasks, results, and events
+- Replace components without affecting the rest of the system
+- Scale components independently based on workload
+
+### Backend Abstraction
+
+The Backend classes provide a unified interface for storage systems:
+
+- Create task queue, result storage, and event storage from a single backend
+- Simplify configuration by using a single backend for all components
+- Mix and match backends for different components
+
+### Multiple Named Queues
+
+All task queue implementations support multiple named queues:
+
+- File Queue: Directory structure for each queue
+- SQLite/PostgreSQL Queue: Queue column approach with priority ordering
+- Redis Queue: Queue prefixes
+- NATS Queue: Subject prefixes
+
+### Worker Flexibility
+
+Workers are independent of task queues but can be initialized with a queue reference:
+
+- All worker types can handle both sync and async tasks
+- Async workers run sync tasks in thread pools
+- Thread/process workers run async tasks in event loops
+- Workers can process tasks from multiple queues with priority ordering
+
+### Configuration System
+
+OmniQ provides multiple configuration methods:
+
+- Direct parameter initialization
+- Type-validated config objects using msgspec.Struct
+- Dictionary-based configuration
+- YAML file configuration
+- Environment variable overrides
+
+### Serialization Strategy
+
+OmniQ uses a dual serialization approach:
+
+- msgspec for high-performance serialization of compatible types
+- dill for serialization of complex Python objects
+- Automatic selection based on type detection
+
+### Storage Strategy
+
+- **fsspec Integration**: Use `fsspec` for file and memory storage with extended capabilities
+- **Multiple Backends**: Support various storage options for different needs
+- **Unified Interface**: Common protocol for all storage backends
+- **Dual Interface**: Both sync and async methods for all storage operations
+- **Cloud Support**: Seamless support for S3, Azure Blob, and Google Cloud Storage through optional dependencies (s3fs, adlfs, gcsfs)
+- **Unified Result Storage**: Store results in the same backend as tasks
+- **Backend-Specific Optimizations**: Use specialized features of each backend for result storage
+- **Base Directory Support**: Use `base_dir` parameter as prefix when creating fsspec filesystems
+
+### Event Architecture
+
+- **Non-blocking Logging**: Events don't slow down task execution
+- **Structured Events**: Rich metadata for monitoring and debugging
+- **Configurable Levels**: Runtime adjustment of logging levels
+- **Dual Interface**: Both sync and async event handling
+- **No Serialization**: Store task events without serialization in SQLite, PostgreSQL, or as JSON files
+- **Separation**: Clear separation between library logging and task event logging
+
+### Fault Tolerance
+
+- **Circuit Breaker**: Prevents cascade failures in distributed storage
+- **Retry Logic**: Exponential backoff with jitter
+- **Graceful Degradation**: System continues with reduced functionality
+- **Dead Letter Queue**: Store failed tasks for inspection
+
+## Module Architecture
+
+### Core Models (`omniq.models`)
+
 **Purpose**: Define data structures and business logic
 
 **Components**:
@@ -76,6 +484,7 @@ TaskQueue (Orchestrator)
 - `Schedule`: Timing logic (cron, interval, timestamp) with pause/resume capability
 - `TaskResult`: Execution outcome storage
 - `TaskEvent`: Event logging data model
+- `Settings`: Library settings without "OMNIQ_" prefix with environment variable overrides
 
 **Key Design Decisions**:
 - Use `msgspec.Struct` for high-performance serialization
@@ -85,38 +494,48 @@ TaskQueue (Orchestrator)
 - Define clear result states (pending, running, success, error)
 - Include TTL for automatic task expiration
 - Support schedule state management (active, paused)
-### 2.2 Storage Interfaces (`omniq.storage`)
+- Implement settings constants without "OMNIQ_" prefix, which can be overridden by environment variables with "OMNIQ_" prefix
+
+### Storage Interfaces (`omniq.storage`)
+
 **Purpose**: Abstract storage backends for pluggability
 
 **Components**:
-- `BaseTaskStorage`: Abstract interface for task storage with both sync and async methods
+- `BaseTaskQueue`: Abstract interface for task queue with both sync and async methods
 - `BaseResultStorage`: Abstract interface for result storage with both sync and async methods
-- `BaseEventStorage`: Abstract interface for event logging (SQL-based only)
-- Task and Result Storage implementations:
-  - `FileStorage`: Using `obstore` for local and cloud storage (S3, Azure, GCP)
-  - `MemoryStorage`: Using `obstore.MemoryStore` instead of custom RAM storage
-  - `SQLiteStorage`: Local database storage
-  - `PostgresStorage`: Distributed database storage (async)
-  - `RedisStorage`: Distributed cache storage (async)
-  - `NATSStorage`: Message queue storage (async)
-- Event Storage implementations:
-  - `SQLiteEventStorage`: Local database event storage
-  - `PostgresEventStorage`: Distributed database event storage
-  - `FileEventStorage`: JSON files with DuckDB querying
+- `BaseEventStorage`: Abstract interface for event logging (SQL-based or JSON files)
+- Task Queue implementations:
+  - `AsyncFileQueue`: Core async implementation using `fsspec` with `DirFileSystem`
+  - `FileQueue`: Sync wrapper around `AsyncFileQueue`
+  - `AsyncMemoryQueue`: Core async implementation using `fsspec.MemoryFileSystem`
+  - `MemoryQueue`: Sync wrapper around `AsyncMemoryQueue`
+  - `AsyncSQLiteQueue`: Core async implementation using `aiosqlite`
+  - `SQLiteQueue`: Sync wrapper around `AsyncSQLiteQueue`
+  - `AsyncPostgresQueue`: Core async implementation using `asyncpg`
+  - `PostgresQueue`: Sync wrapper around `AsyncPostgresQueue`
+  - `AsyncRedisQueue`: Core async implementation using `redis.asyncio`
+  - `RedisQueue`: Sync wrapper around `AsyncRedisQueue`
+  - `AsyncNATSQueue`: Core async implementation using `nats.aio`
+  - `NATSQueue`: Sync wrapper around `AsyncNATSQueue`
+- Similar pattern for Result Storage and Event Storage implementations
 
 **Key Design Decisions**:
-- Use `obstore` for file and memory storage backends
-- Implement both sync and async interfaces for all storage backends
+- Implement async core functionality first
+- Create sync wrappers around async implementations
+- Use `fsspec` for file and memory storage backends with `base_dir` parameter as prefix
+- Support memory, local, S3, Azure, and GCP storage locations through fsspec with optional dependencies (s3fs, adlfs, gcsfs)
 - Connection pooling for distributed backends
 - Transaction support for consistency
 - Bulk operations for performance
 - Allow independent selection of storage backends for tasks, results, and events
 - Default to using the same backend type for tasks and results if not explicitly specified
-- Restrict event storage to SQL-based backends for efficient querying
+- Store task events without serialization in SQLite, PostgreSQL, or as JSON files
 - Support task TTL enforcement and cleanup in all storage backends
 - Store schedule state (active/paused) in storage backends
+- Implement task locking mechanism in all queue backends to prevent duplicate execution
 
-### 2.3 Serialization Layer (`omniq.serialization`)
+### Serialization Layer (`omniq.serialization`)
+
 **Purpose**: Task and result serialization for storage and retrieval
 
 **Components**:
@@ -132,13 +551,15 @@ TaskQueue (Orchestrator)
 - Store serialization format with data for proper deserialization
 - Implement security measures for `dill` deserialization
 
-### 2.4 Task Queue Engine (`omniq.queue`)
+### Task Queue Engine (`omniq.queue`)
+
 **Purpose**: Core orchestration and execution logic
 
 **Components**:
-- `AsyncTaskQueue`: Async implementation of task queue
-- `SyncTaskQueue`: Sync wrapper around async implementation
-- `Scheduler`: Schedule processing and task queuing with pause/resume capability
+- `AsyncTaskQueue`: Async core implementation of task queue
+- `TaskQueue`: Sync wrapper around async implementation
+- `AsyncScheduler`: Async core implementation of scheduler
+- `Scheduler`: Sync wrapper around async implementation
 - `DependencyResolver`: Graph-based dependency management
 - `RetryManager`: Exponential backoff and failure handling
 - `TTLManager`: Task expiration and cleanup
@@ -153,18 +574,22 @@ TaskQueue (Orchestrator)
 - Implement task TTL enforcement and cleanup
 - Support schedule pausing and resuming
 
-### 2.5 Worker Layer (`omniq.workers`)
+### Worker Layer (`omniq.workers`)
+
 **Purpose**: Task execution with multiple worker types
 
 **Components**:
-- `WorkerPool`: Worker management and task distribution
+- `AsyncWorkerPool`: Async core implementation of worker pool
+- `WorkerPool`: Sync wrapper around async implementation
 - Worker implementations:
-  - `AsyncWorker`: Native async execution
-  - `ThreadWorker`: Thread pool execution
-  - `ProcessWorker`: Process pool execution
-  - `GeventWorker`: Gevent pool execution
+  - `AsyncWorker`: Native async execution (core implementation)
+  - `ThreadWorker`: Thread pool execution (wraps async worker)
+  - `ProcessWorker`: Process pool execution (wraps async worker)
+  - `GeventWorker`: Gevent pool execution (wraps async worker)
 
 **Key Design Decisions**:
+- Implement async core functionality first
+- Create sync wrappers around async implementations
 - Support multiple worker types for different workloads
 - Handle both sync and async tasks appropriately
 - Implement common interface for all worker types
@@ -173,455 +598,582 @@ TaskQueue (Orchestrator)
 - Result serialization and storage after task completion
 - Respect task TTL during execution
 
-### 2.6 Event System (`omniq.events`)
+### Event System (`omniq.events`)
+
 **Purpose**: Task lifecycle tracking and monitoring
 
 **Components**:
-- `EventLogger`: Central event collection with configurable levels
-- `EventProcessor`: Async event handling
+- `AsyncEventLogger`: Async core implementation of event logger
+- `EventLogger`: Sync wrapper around async implementation
+- `AsyncEventProcessor`: Async core implementation of event processor
+- `EventProcessor`: Sync wrapper around async implementation
 - Event types: ENQUEUED, EXECUTING, COMPLETE, ERROR, RETRY, CANCELLED, EXPIRED, SCHEDULE_PAUSED, SCHEDULE_RESUMED
 
 **Key Design Decisions**:
+- Implement async core functionality first
+- Create sync wrappers around async implementations
 - Non-blocking event logging with disable option
 - Structured logging with metadata
 - Configurable event retention policies
-- Runtime logging level adjustment (DEBUG, INFO, WARNING, ERROR, DISABLED)
-- Support both sync and async event handling
-- SQL-based storage for efficient querying and analysis
+- Event logging automatically disabled when no event storage is configured
+- Store task events without serialization in SQLite, PostgreSQL, or as JSON files
 - Track task TTL events and schedule state changes
+- Clear separation between library logging and task event logging
 
+### Configuration (`omniq.config`)
 
-### 2.7 Dashboard (`omniq.dashboard`)
-**Purpose**: Web interface for monitoring and management
-
-**Components**:
-- `DashboardApp`: Litestar application
-- `TaskViews`: Real-time task monitoring
-- `ScheduleViews`: Schedule management
-- `MetricsViews`: Performance statistics
-
-**Key Design Decisions**:
-- Server-sent events for real-time updates
-- Reactive UI with datastar-py
-- RESTful API for programmatic access
-- Comprehensive task and worker monitoring
-- Result inspection and visualization
-- Schedule management with pause/resume controls
-- Task TTL visualization and management
-
-### 2.8 Configuration (`omniq.config`)
 **Purpose**: Centralized configuration management
 
 **Components**:
-- `EnvConfig`: Environment variable configuration
+- `Settings`: Library settings constants without "OMNIQ_" prefix
+- `EnvConfig`: Environment variable configuration with "OMNIQ_" prefix
 - `ConfigProvider`: Configuration loading and validation
 - `LoggingConfig`: Logging configuration
 
 **Key Design Decisions**:
+- Define settings constants without "OMNIQ_" prefix that can be overridden by environment variables with "OMNIQ_" prefix
 - Environment variables as primary configuration method
 - Type conversion and validation for config values
 - Component-specific configuration sections
 - Runtime configuration changes
-- Independent configuration of task, result, and event storage
+- Independent configuration of task queue, result storage, and event storage
 - Configuration for default task TTL
+- Separate configuration for library logging and task event logging
 
----
+## Development Guidelines
 
-## 3. Implementation Tasks with Architecture Context
+### Async First, Sync Wrapped Implementation Guidelines
 
-### Phase 1: Foundation (Weeks 1-2)
-
-**Task 1: Project Setup and Configuration**
-- Initialize project structure and dependencies
-- Implement environment variable configuration in `omniq.config`
-- Set up logging configuration with levels and component-specific settings
-- Configure development tools (pytest, ruff, mypy)
-- *Architecture*: Configuration foundation for all components
-
-**Task 2: Core Models**
-- Implement `Task`, `Schedule`, `TaskResult`, `TaskEvent` using `msgspec.Struct`
-- Add support for both sync and async callable references
-- Design dependency tracking mechanisms
-- Define result states and transitions
-- *Architecture*: Foundation for all other components
-
-**Task 3: Serialization Layer**
-- Implement type detection for serializer selection
-- Build `msgspec` primary serializer
-- Create `dill` fallback serializer
-- Add serialization format metadata
-- Implement security measures for `dill`
-- *Architecture*: Task and result serialization
-
-**Task 4: Storage Interfaces**
-- Define `BaseStorage` and `BaseEventStorage` with sync and async methods
-- Add result storage methods to `BaseStorage`
-- Implement connection management patterns
-- Add context manager support for both sync and async
-- Create storage factory for backend selection
-- *Architecture*: Enables pluggable backends
-
-**Task 5: ObStore Integration**
-- Implement file storage using `obstore` for local and cloud storage
-- Create memory storage using `obstore.MemoryStore`
-- Add support for different storage locations (S3, Azure, GCP)
-- Implement both sync and async interfaces
-- Add result storage support in obstore backends
-- *Architecture*: Enhanced storage capabilities
-
-**Task 6: Worker Interface**
-- Define worker protocol with both sync and async methods
-- Design worker lifecycle management
-- Implement worker factory for type selection
-- *Architecture*: Worker abstraction layer
-
-**Task 7: TaskQueue Core**
-- Build async task queue implementation
-- Create sync wrapper around async implementation
-- Implement task enqueueing and dequeueing with serialization
-- Add result storage and retrieval
-- Add graceful shutdown mechanisms
-- *Architecture*: Central coordination point
-
-### Phase 2: Worker Implementation (Week 3)
-
-**Task 8: Async Worker**
-- Implement async worker for native async execution
-- Add concurrency control and resource management
-- Implement result serialization and storage
-- Implement graceful shutdown
-- *Architecture*: Async task execution
-
-**Task 9: Thread Pool Worker**
-- Implement thread pool worker for I/O-bound sync tasks
-- Add thread management and lifecycle control
-- Handle sync task execution in threads
-- Implement result serialization and storage
-- *Architecture*: Thread-based execution
-
-**Task 10: Process Pool Worker**
-- Implement process pool worker for CPU-bound tasks
-- Add process management and communication
-- Handle serialization for cross-process tasks
-- Implement result serialization and storage
-- *Architecture*: Process-based execution
-
-**Task 11: Gevent Pool Worker**
-- Implement gevent pool worker for high-concurrency workloads
-- Add greenlet management
-- Handle cooperative multitasking
-- Implement result serialization and storage
-- *Architecture*: Gevent-based execution
-
-**Task 12: Worker Pool Management**
-- Implement worker pool for task distribution
-- Add worker selection based on task requirements
-- Create monitoring and health checks
-- *Architecture*: Worker orchestration
-
-### Phase 3: Local Persistence (Week 4)
-
-**Task 13: SQLite Storage**
-- Design schema for tasks, schedules, events, and results
-- Implement migrations and indexing
-- Add connection pooling
-- Provide both sync and async interfaces
-- Implement result table structure and queries
-- *Architecture*: Production-ready local storage
-
-**Task 14: Event Storage**
-- Build SQL-based event storage
-- Implement JSON+DuckDB storage
-- Add query optimization
-- Support configurable retention policies
-- *Architecture*: Monitoring foundation
-
-**Task 15: Result Management**
-- Build result storage with expiration
-- Implement result aggregation
-- Add result streaming for large datasets
-- Provide both sync and async result interfaces
-- Use the same serialization approach as for tasks
-- *Architecture*: Task output handling
-
-### Phase 4: Scheduling & Dependencies (Week 5)
-
-**Task 16: Scheduler Integration**
-- Implement schedule processing loop
-- Add timezone support and DST handling
-- Build schedule persistence layer
-- Create both sync and async scheduler interfaces
-- *Architecture*: Temporal task management
-
-**Task 17: Dependency System**
-- Build task dependency graph
-- Implement cycle detection
-- Add parallel execution optimization
-- Support both sync and async resolution
-- *Architecture*: Complex workflow support
-
-**Task 18: Retry & Fault Tolerance**
-- Implement exponential backoff
-- Add circuit breaker for storage failures
-- Build dead letter queue
-- Create retry policies and limits
-- *Architecture*: Production resilience
-
-**Task 19: Callback System**
-- Implement lifecycle hooks
-- Add callback chaining
-- Support both sync and async callbacks
-- Create callback error handling
-- *Architecture*: Extensible task behavior
-
-### Phase 5: Distributed Storage (Week 6)
-
-**Task 20: PostgreSQL Backend**
-- Build robust async SQL storage
-- Implement connection pooling
-- Add transaction support
-- Create sync wrapper around async implementation
-- Implement result tables and queries
-- *Architecture*: Enterprise-grade persistence
-
-**Task 21: Redis Backend**
-- Implement async Redis-based storage
-- Add pub/sub for real-time updates
-- Support Redis Cluster
-- Create sync wrapper around async implementation
-- Implement result storage using hash structures with TTL
-- *Architecture*: Distributed cache storage
-
-**Task 22: NATS Backend**
-- Implement async NATS storage with JetStream
-- Add subject-based routing
-- Support NATS clustering
-- Create sync wrapper around async implementation
-- Implement result storage using KV store or object store
-- *Architecture*: Cloud-native messaging
-
-### Phase 6: Dashboard & Monitoring (Week 7)
-
-**Task 23: Web Dashboard**
-- Build Litestar application
-- Implement real-time task monitoring
-- Add schedule management UI
-- Create metrics visualization
-- Add result inspection and visualization
-- *Architecture*: User interface layer
-
-**Task 24: Testing & Integration**
-- Write comprehensive test suite for both sync and async interfaces
-- Add performance benchmarks
-- Build integration scenarios
-- Test worker types and storage backends
-- Test result storage and retrieval
-- *Architecture*: Quality assurance
-
-**Task 25: Documentation & Examples**
-- Create comprehensive API documentation
-- Write usage examples for both sync and async APIs
-- Document worker types and use cases
-- Add deployment guides
-- *Architecture*: Knowledge sharing
-
----
-
-## 4. Technical Decisions & Rationale
-
-### Dual Interface Strategy
-- **Async Foundation**: Core implementation uses async for performance
-- **Sync Wrappers**: Synchronous interfaces wrap async implementations
-- **Consistent API**: Similar method signatures between sync and async interfaces
-- **Context Management**: Proper resource handling in both interfaces
-- **Error Propagation**: Consistent error handling across interfaces
-
-### Storage Strategy
-- **ObStore Integration**: Use `obstore` for file and memory storage with extended capabilities
-- **Multiple Backends**: Support various storage options for different needs
-- **Unified Interface**: Common protocol for all storage backends
-- **Dual Interface**: Both sync and async methods for all storage operations
-- **Cloud Support**: Seamless support for S3, Azure Blob, and Google Cloud Storage
-- **Unified Result Storage**: Store results in the same backend as tasks
-- **Backend-Specific Optimizations**: Use specialized features of each backend for result storage
-
-### Serialization Strategy
-- **Unified Approach**: Use the same serialization strategy for tasks and results
-- **Dual Approach**: Use `msgspec` for performance, `dill` for compatibility
-- **Type Detection**: Automatically select appropriate serializer
-- **Format Tagging**: Store serialization format with data
-- **Security**: Implement signature verification for `dill` deserialization
-
-### Worker Strategy
-- **Multiple Worker Types**: Support different execution models
-- **Async Workers**: Native async execution for I/O-bound tasks
-- **Thread Pool**: Thread-based execution for I/O-bound sync tasks
-- **Process Pool**: Process-based execution for CPU-bound tasks
-- **Gevent Pool**: Cooperative multitasking for high-concurrency workloads
-- **Worker Selection**: Runtime selection based on task requirements
-- **Result Handling**: Consistent result serialization and storage across worker types
-
-### Event Architecture
-- **Non-blocking Logging**: Events don't slow down task execution
-- **Structured Events**: Rich metadata for monitoring and debugging
-- **Configurable Levels**: Runtime adjustment of logging levels
-- **Dual Interface**: Both sync and async event handling
-
-### Fault Tolerance
-- **Circuit Breaker**: Prevents cascade failures in distributed storage
-- **Retry Logic**: Exponential backoff with jitter
-- **Graceful Degradation**: System continues with reduced functionality
-- **Dead Letter Queue**: Store failed tasks for inspection
-
----
-
-## 5. Development Approach
-
-### Build Order Rationale
-1. **Configuration & Models**: Establish foundation with environment variables and data structures
-2. **Storage & Serialization**: Build data management layer with `obstore` integration and result storage
-3. **Workers & Queue**: Implement task distribution and execution with multiple worker types
-4. **Features & Extensions**: Add scheduling, dependencies, callbacks, and retry logic
-5. **Distributed Storage**: Implement PostgreSQL, Redis, and NATS backends with result storage
-6. **Dashboard & Documentation**: Create monitoring interface and comprehensive documentation
-
-### Testing Strategy
-- Unit tests developed concurrently with code (test-driven development)
-- Integration tests for storage backends
-- Worker-specific tests for different execution models
-- Performance benchmarks for critical paths
-- Sync and async interface tests
-- Result storage and retrieval tests
-- Schedule pause/resume functionality tests
-- Task TTL enforcement tests
-
-### Dependency Management
-- Core library: `obstore`, `msgspec`, `dill`, `asyncio` (stdlib)
-- Worker dependencies: `gevent`, `concurrent.futures` (stdlib)
-- Storage backends: `asyncpg`, `aioredis`, `nats-py`
-- Dashboard: `litestar`, `htpy`, `datastar-py`
-- Development: `pytest`, `pytest-asyncio`, `ruff`, `mypy` (managed via uv)
-
----
-
-## 6. Development Guidelines
-
-### Environment Variable Configuration
-- Use environment variables for deployment-specific settings
-- Support the following variables:
-  - `OMNIQ_LOG_LEVEL`: Set logging level (DEBUG, INFO, WARNING, ERROR, DISABLED)
-  - `OMNIQ_DISABLE_LOGGING`: Disable all logging when set to "1" or "true"
-  - `OMNIQ_TASK_STORAGE_TYPE`: Storage backend for tasks (file, memory, sqlite, postgres, redis, nats)
-  - `OMNIQ_TASK_STORAGE_URL`: Connection string for task storage backend
-  - `OMNIQ_RESULT_STORAGE_TYPE`: Storage backend for results (file, memory, sqlite, postgres, redis, nats)
-  - `OMNIQ_RESULT_STORAGE_URL`: Connection string for result storage backend
-  - `OMNIQ_EVENT_STORAGE_TYPE`: Storage backend for events (sqlite, postgres, file)
-  - `OMNIQ_EVENT_STORAGE_URL`: Connection string for event storage backend
-  - `OMNIQ_OBSTORE_URI`: URI for obstore (e.g., "file:///path", "s3://bucket", "memory://")
-  - `OMNIQ_DEFAULT_WORKER`: Default worker type (async, thread, process, gevent)
-  - `OMNIQ_MAX_WORKERS`: Maximum number of workers
-  - `OMNIQ_THREAD_WORKERS`: Thread pool size
-  - `OMNIQ_PROCESS_WORKERS`: Process pool size
-  - `OMNIQ_GEVENT_WORKERS`: Gevent pool size
-  - `OMNIQ_TASK_TIMEOUT`: Default task execution timeout in seconds
-  - `OMNIQ_TASK_TTL`: Default time-to-live for tasks in seconds
-  - `OMNIQ_RETRY_ATTEMPTS`: Default number of retry attempts
-  - `OMNIQ_RETRY_DELAY`: Default delay between retries in seconds
-  - `OMNIQ_RESULT_TTL`: Default time-to-live for task results in seconds
-  - `OMNIQ_DASHBOARD_PORT`: Web dashboard port number
-  - `OMNIQ_DASHBOARD_ENABLED`: Enable/disable dashboard
-  - `OMNIQ_COMPONENT_LOG_LEVELS`: JSON string with per-component logging levels
-
-### Context7 MCP and Deepwiki MCP Usage
-When implementing tasks involving unfamiliar libraries, use the context7 MCP and deepwiki MCP to:
-- **msgspec**: Get advanced serialization patterns and validation examples
-- **obstore**: Learn storage abstraction patterns and cloud storage integration
-- **gevent/greenlet**: Understand cooperative multitasking patterns
-- **nats/nats.py**: Learn advanced messaging patterns
-- **litestar**: Understand API routing, dependency injection, and middleware patterns
-- **htpy**: Learn component-based UI development and templating
-- **datastar/datastar-py**: Understand reactive data binding and state management
-
-
-### Sync/Async Implementation Guidelines
-- **Async First**: Implement core functionality using async
-- **Sync Wrappers**: Create synchronous wrappers using `asyncio.run()` or event loops
-- **Context Managers**: Implement both `__enter__`/`__exit__` and `__aenter__`/`__aexit__`
+- **Core Async Implementation**: Implement all core functionality using async/await
+- **Sync Wrappers**: Create synchronous wrappers using `anyio.from_thread.run()` or event loops
+- **Naming Convention**: Use `Async` prefix for core async classes, no prefix for sync wrappers. Sync wrapper methods should have a `_sync` suffix.
+- **Context Managers**: Implement both `__aenter__`/`__aexit__` and `__enter__`/`__exit__`
 - **Error Handling**: Preserve exception context across sync/async boundaries
 - **Resource Management**: Ensure proper cleanup in both sync and async contexts
 
-### Worker Implementation Guidelines
-- **Common Interface**: All workers implement the same interface
-- **Resource Limits**: Configurable concurrency limits for all worker types
-- **Graceful Shutdown**: Proper shutdown sequence with task completion
-- **Monitoring**: Expose metrics for worker performance and health
-- **Task Routing**: Intelligent routing of tasks to appropriate workers
-- **Result Handling**: Consistent result serialization and storage across worker types
+Example implementation pattern:
 
-### Storage Implementation Guidelines
-- **Independent Configuration**: Allow separate configuration of task, result, and event storage
-- **Default Behavior**: Use the same backend type for tasks and results if not explicitly specified
-- **SQL-Based Event Storage**: Restrict event storage to SQL or structured storage options
-- **Serialization Consistency**: Use the same serialization approach for tasks and results
-- **TTL Support**: Implement expiration for both tasks and results across all backends
-- **Backend-Specific Optimizations**: Use specialized features of each backend where appropriate
-- **Schedule State Management**: Store schedule state (active/paused) in all backends
-
-### Testing Guidelines
-- **Test-Driven Development**: Write unit tests concurrently with code development
-- **Test Coverage**: Aim for high test coverage across all components
-- **Test Categories**: 
-  - Unit tests for individual components
-  - Integration tests for backend interactions
-  - Functional tests for end-to-end workflows
-  - Performance tests for critical paths
-- **Test Fixtures**: Create reusable fixtures for common test scenarios
-- **Async Testing**: Use pytest-asyncio for testing async code
-- **Mock Dependencies**: Use mocks for external dependencies
-- **Continuous Testing**: Run tests automatically on code changes
-
-### Example Usage (Async)
 ```python
-from omniq import AsyncTaskQueue, Task
+# Async core implementation
+class AsyncTaskQueue:
+    async def enqueue(self, task):
+        # Async implementation
+        ...
+    
+    async def __aenter__(self):
+        await self.connect()
+        return self
+    
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        await self.close()
 
-# Create a task queue with async interface
-queue = AsyncTaskQueue(
-    storage_type="memory",
-    worker_type="async",
-    max_workers=10
+# Sync wrapper
+class TaskQueue:
+    def __init__(self, *args, **kwargs):
+        self._async_queue = AsyncTaskQueue(*args, **kwargs)
+    
+    def enqueue(self, task):
+        return anyio.from_thread.run(self._async_queue.enqueue(task))
+    
+    def __enter__(self):
+        anyio.from_thread.run(self._async_queue.__aenter__())
+        return self
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        anyio.from_thread.run(self._async_queue.__aexit__(exc_type, exc_val, exc_tb))
+```
+
+### Settings and Environment Variables
+
+- Define settings constants without "OMNIQ_" prefix
+- Override settings with environment variables with "OMNIQ_" prefix
+- Example: `BASE_DIR` in settings, `OMNIQ_BASE_DIR` as environment variable
+
+```python
+# settings.py
+BASE_DIR = "default/path"
+PROJECT_NAME = "default"
+
+# env.py
+import os
+from .settings import BASE_DIR, PROJECT_NAME
+
+base_dir = os.environ.get("OMNIQ_BASE_DIR", BASE_DIR)
+project_name = os.environ.get("OMNIQ_PROJECT_NAME", PROJECT_NAME)
+```
+
+Support the following variables:
+- `LOG_LEVEL` in settings, `OMNIQ_LOG_LEVEL` as env var: Set library logging level (DEBUG, INFO, WARNING, ERROR, DISABLED)
+- `DISABLE_LOGGING` in settings, `OMNIQ_DISABLE_LOGGING` as env var: Disable all library logging when set to "1" or "true"
+- `TASK_QUEUE_TYPE` in settings, `OMNIQ_TASK_QUEUE_TYPE` as env var: Queue backend for tasks (file, memory, sqlite, postgres, redis, nats)
+- `TASK_QUEUE_URL` in settings, `OMNIQ_TASK_QUEUE_URL` as env var: Connection string for task queue backend
+- `RESULT_STORAGE_TYPE` in settings, `OMNIQ_RESULT_STORAGE_TYPE` as env var: Storage backend for results (file, memory, sqlite, postgres, redis, nats)
+- `RESULT_STORAGE_URL` in settings, `OMNIQ_RESULT_STORAGE_URL` as env var: Connection string for result storage backend
+- `EVENT_STORAGE_TYPE` in settings, `OMNIQ_EVENT_STORAGE_TYPE` as env var: Storage backend for events (sqlite, postgres, file)
+- `EVENT_STORAGE_URL` in settings, `OMNIQ_EVENT_STORAGE_URL` as env var: Connection string for event storage backend
+- `FSSPEC_URI` in settings, `OMNIQ_FSSPEC_URI` as env var: URI for fsspec (e.g., "file:///path", "s3://bucket", "memory://")
+- `DEFAULT_WORKER` in settings, `OMNIQ_DEFAULT_WORKER` as env var: Default worker type (async, thread, process, gevent)
+- `MAX_WORKERS` in settings, `OMNIQ_MAX_WORKERS` as env var: Maximum number of workers
+- `THREAD_WORKERS` in settings, `OMNIQ_THREAD_WORKERS` as env var: Thread pool size
+- `PROCESS_WORKERS` in settings, `OMNIQ_PROCESS_WORKERS` as env var: Process pool size
+- `GEVENT_WORKERS` in settings, `OMNIQ_GEVENT_WORKERS` as env var: Gevent pool size
+- `TASK_TIMEOUT` in settings, `OMNIQ_TASK_TIMEOUT` as env var: Default task execution timeout in seconds
+- `TASK_TTL` in settings, `OMNIQ_TASK_TTL` as env var: Default time-to-live for tasks in seconds
+- `RETRY_ATTEMPTS` in settings, `OMNIQ_RETRY_ATTEMPTS` as env var: Default number of retry attempts
+- `RETRY_DELAY` in settings, `OMNIQ_RETRY_DELAY` as env var: Default delay between retries in seconds
+- `RESULT_TTL` in settings, `OMNIQ_RESULT_TTL` as env var: Default time-to-live for task results in seconds
+- `COMPONENT_LOG_LEVELS` in settings, `OMNIQ_COMPONENT_LOG_LEVELS` as env var: JSON string with per-component logging levels
+
+### Component Configuration
+
+- Use msgspec.Struct for type-validated configuration
+- Support multiple initialization methods:
+  - Direct parameters
+  - Config objects
+  - Dictionaries
+  - YAML files
+
+```python
+@classmethod
+def from_config(cls, config):
+    """Create instance from config object"""
+    return cls(**config.dict())
+
+@classmethod
+def from_dict(cls, config_dict):
+    """Create instance from dictionary"""
+    return cls(**config_dict)
+
+@classmethod
+def from_config_file(cls, config_path):
+    """Create instance from config file"""
+    config_dict = load_yaml_config(config_path)
+    return cls.from_dict(config_dict)
+```
+
+### Worker Implementation
+
+- All worker types should handle both sync and async tasks
+- Async workers should run sync tasks in thread pools
+- Thread/process workers should run async tasks in event loops
+- Workers should process tasks from multiple queues with priority ordering
+- Implement both sync and async context managers
+
+### Storage Implementation
+
+- Implement multiple queues in all task queue backends
+- Use queue column approach for SQL-based queues
+- Use directory structure for file-based queues
+- Use prefixes for Redis and NATS queues
+- Implement both sync and async context managers
+- Use fsspec for file and memory storage with DirFileSystem when possible
+- Support optional cloud storage through s3fs, gcsfs, and adlfs
+
+### Logging and Event Management
+
+- **Separate Library Logging from Task Events**: Library logging is for debugging and monitoring the library itself, while task events are for tracking task lifecycle
+- **Library Logging Configuration**: Set via function, settings constant, or environment variable
+- **Task Event Logging**: Automatically disabled when no event storage is configured
+- **Event Storage**: Only enabled when explicitly configured
+
+### Task Queue and Worker Coordination
+
+- **Task Locking**: Implement locking mechanism in all queue backends to prevent duplicate execution
+- **NATS Queue Groups**: Use NATS queue groups for exclusive task consumption
+- **Redis Atomic Operations**: Use Redis atomic operations for task locking
+- **Database Transactions**: Use database transactions and row locking for SQL-based queues
+- **Distributed Coordination**: Implement appropriate locking mechanisms for each queue backend type
+
+### File Storage Implementation
+
+- Implement file storage for tasks, results, and events using fsspec
+- Support the following storage locations:
+  - Memory: Using fsspec MemoryFileSystem
+  - Local: Using fsspec LocalFileSystem with DirFileSystem when possible
+  - S3: Using s3fs (optional dependency)
+  - Azure: Using adlfs (optional dependency)
+  - GCP: Using gcsfs (optional dependency)
+- Use `base_dir` parameter in initialization as the prefix when creating fsspec filesystems
+- Store task events as JSON files when using File Storage Backend for events
+
+### uv Project Management
+
+- Use `uv` for dependency management and project setup
+- Initialize the project with `uv init`
+- Manage dependencies with `uv add` and `uv remove`
+
+## Usage Examples
+
+### Basic Usage with AsyncOmniQ
+
+```python
+from omniq import AsyncOmniQ
+from omniq.queue import FileTaskQueue
+from omniq.storage import SQLiteResultStorage, PostgresEventStorage
+import datetime as dt
+
+# Create AsyncOmniQ instance with default components
+oq = AsyncOmniQ(
+    project_name="my_project",
+    task_queue=FileTaskQueue(base_dir="some/path", queues=["low", "medium", "high"]),
+    result_store=SQLiteResultStorage(base_dir="some/path"),
+    event_store=PostgresEventStorage(host="localhost", port=5432, username="postgres")
 )
 
 # Define an async task
-async def my_task(x, y):
-    return x + y
+async def async_task(name):
+    print(f"Hello {name}")
+    return name
 
-# Enqueue task
-task_id = await queue.enqueue(my_task, args=(5, 10))
+# Start the worker
+await oq.start_worker()
 
-# Get result
-result = await queue.get_result(task_id)
-print(f"Result: {result}")  # Result: 15
-```
-
-### Example Usage (Sync)
-```python
-from omniq import TaskQueue, Task
-
-# Create a task queue with sync interface
-queue = TaskQueue(
-    storage_type="sqlite",
-    worker_type="thread",
-    max_workers=5
+# Enqueue a task
+task_id = await oq.enqueue(
+    func=async_task,
+    func_args=dict(name="Tom"),
+    queue_name="low",
+    run_in=dt.timedelta(seconds=100),
+    ttl=dt.timedelta(hours=1),
+    result_ttl=dt.timedelta(minutes=5)
 )
 
-# Define a sync task
-def my_task(x, y):
+# Get the result
+result = await oq.get_result(task_id)
+
+# Schedule a recurring task
+schedule_id = await oq.schedule(
+    func=async_task,
+    func_args=dict(name="Tom"),
+    interval=dt.timedelta(seconds=10),
+    queue_name="low"
+)
+
+# Get latest result from scheduled task
+latest_result = await oq.get_result(schedule_id=schedule_id, kind="latest")
+
+# Stop the worker
+await oq.stop_worker()
+
+# Using async context manager
+async with AsyncOmniQ(...) as oq:
+    task_id = await oq.enqueue(async_task, func_args=dict(name="Tom"))
+    result = await oq.get_result(task_id)
+```
+
+### Basic Usage with OmniQ (Sync)
+
+```python
+from omniq import OmniQ
+from omniq.queue import FileTaskQueue
+from omniq.storage import SQLiteResultStorage, PostgresEventStorage
+import datetime as dt
+
+# Create OmniQ instance with default components
+oq = OmniQ(
+    project_name="my_project",
+    task_queue=FileTaskQueue(base_dir="some/path", queues=["low", "medium", "high"]),
+    result_store=SQLiteResultStorage(base_dir="some/path"),
+    event_store=PostgresEventStorage(host="localhost", port=5432, username="postgres")
+)
+
+# Define a task
+def simple_task(name):
+    print(f"Hello {name}")
+    return name
+
+# Start the worker
+oq.start_worker()
+
+# Enqueue a task
+task_id = oq.enqueue(
+    func=simple_task,
+    func_args=dict(name="Tom"),
+    queue_name="low",
+    run_in=dt.timedelta(seconds=100),
+    ttl=dt.timedelta(hours=1),
+    result_ttl=dt.timedelta(minutes=5)
+)
+
+# Get the result
+result = oq.get_result(task_id)
+
+# Schedule a recurring task
+schedule_id = oq.schedule(
+    func=simple_task,
+    func_args=dict(name="Tom"),
+    interval=dt.timedelta(seconds=10),
+    queue_name="low"
+)
+
+# Get latest result from scheduled task
+latest_result = oq.get_result(schedule_id=schedule_id, kind="latest")
+
+# Stop the worker
+oq.stop_worker()
+
+# Using sync context manager
+with OmniQ(...) as oq:
+    task_id = oq.enqueue(simple_task, func_args=dict(name="Tom"))
+    result = oq.get_result(task_id)
+```
+
+### Component-Based Usage
+
+```python
+from omniq.queue import FileTaskQueue
+from omniq.storage import SQLiteResultStorage
+from omniq.workers import ThreadPoolWorker
+import datetime as dt
+
+# Create components individually
+queue = FileTaskQueue(
+    project_name="my_project",
+    base_dir="some/path",
+    queues=["low", "medium", "high"]
+)
+
+result_store = SQLiteResultStorage(
+    project_name="my_project",
+    base_dir="some/path"
+)
+
+# Create worker with reference to queue and result store
+worker = ThreadPoolWorker(
+    queue=queue,
+    result_store=result_store,
+    max_workers=20
+)
+
+# Define a task
+def simple_task(name):
+    print(f"Hello {name}")
+    return name
+
+# Start the worker
+worker.start()
+
+# Enqueue a task
+task_id = queue.enqueue(
+    func=simple_task,
+    func_args=dict(name="Tom"),
+    queue_name="low"
+)
+
+# Get the result
+result = result_store.get(task_id)
+
+# Stop the worker
+worker.stop()
+
+# Using context managers
+with FileTaskQueue(...) as queue, SQLiteResultStorage(...) as result_store, ThreadPoolWorker(queue=queue, result_store=result_store) as worker:
+    task_id = queue.enqueue(simple_task, func_args=dict(name="Tom"))
+    result = result_store.get(task_id)
+```
+
+### Backend-Based Usage
+
+```python
+from omniq import OmniQ
+from omniq.backend import SQLiteBackend, FileBackend, PostgresBackend
+
+# Create backends
+sqlite_backend = SQLiteBackend(project_name="my_project", base_dir="some/path")
+file_backend = FileBackend(project_name="my_project", base_dir="some/path")
+pg_backend = PostgresBackend(
+    project_name="my_project",
+    host="localhost",
+    port=5432,
+    username="postgres",
+    password="secret"
+)
+
+# Create OmniQ with a single backend
+oq = OmniQ.from_backend(sqlite_backend, worker_type="thread_pool", worker_config={"max_workers": 10})
+
+# Or mix backends for different components
+oq = OmniQ.from_backend(
+    backend=file_backend,  # For task queue
+    result_store_backend=sqlite_backend,  # For result storage
+    event_store_backend=pg_backend,  # For event storage
+    worker_type="async",
+    worker_config={"max_workers": 20}
+)
+
+# Create individual components from backends
+from omniq import TaskQueue, ResultStore, EventStore
+task_queue = TaskQueue.from_backend(file_backend, queues=["high", "medium", "low"])
+result_store = ResultStore.from_backend(sqlite_backend)
+event_store = EventStore.from_backend(pg_backend)
+```
+
+### Configuration-Based Usage
+
+```python
+from omniq import OmniQ
+from omniq.models import FileTaskQueueConfig, SQLiteResultStorageConfig
+
+# Create components using specific config classes
+from omniq.queue import FileTaskQueue
+from omniq.storage import SQLiteResultStorage
+
+queue = FileTaskQueue.from_config(
+    FileTaskQueueConfig(
+        project_name="my_project",
+        base_dir="some/path",
+        queues=["high", "medium", "low"]
+    )
+)
+
+result_store = SQLiteResultStorage.from_config(
+    SQLiteResultStorageConfig(
+        project_name="my_project",
+        base_dir="some/path"
+    )
+)
+
+# Load from YAML file
+oq = OmniQ.from_config_file("config.yaml")
+
+# Example config.yaml:
+"""
+project_name: my_project
+task_queue:
+  type: file
+  config:
+    base_dir: some/path
+    queues:
+      - high
+      - medium
+      - low
+
+result_store:
+  type: sqlite
+  config:
+    base_dir: some/path
+
+event_store:
+  type: postgres
+  config:
+    host: localhost
+    port: 5432
+    username: postgres
+    password: secret
+
+worker:
+  type: thread_pool
+  config:
+    max_workers: 10
+"""
+```
+
+### Working with Multiple Queues
+
+```python
+from omniq.queue import PostgresTaskQueue
+from omniq.workers import ThreadPoolWorker
+
+# Create PostgreSQL queue with multiple named queues
+queue = PostgresTaskQueue(
+    project_name="my_project",
+    host="localhost",
+    port=5432,
+    username="postgres",
+    password="secret",
+    queues=["high", "medium", "low"]
+)
+
+# Create worker that processes queues in priority order
+worker = ThreadPoolWorker(queue=queue, max_workers=10)
+worker.start()
+
+# Enqueue tasks to different queues
+high_task_id = queue.enqueue(simple_task, func_args=dict(name="High Priority"), queue_name="high")
+medium_task_id = queue.enqueue(simple_task, func_args=dict(name="Medium Priority"), queue_name="medium")
+low_task_id = queue.enqueue(simple_task, func_args=dict(name="Low Priority"), queue_name="low")
+
+# Worker will process "high" queue tasks first, then "medium", then "low"
+```
+
+### Handling Both Sync and Async Tasks
+
+```python
+from omniq import OmniQ
+from omniq.queue import FileTaskQueue
+from omniq.workers import AsyncWorker
+import asyncio
+
+# Create components
+queue = FileTaskQueue(project_name="my_project", base_dir="some/path")
+worker = AsyncWorker(queue=queue, max_workers=10)
+
+# Define sync and async tasks
+def sync_task(x, y):
+    return x * y
+
+async def async_task(x, y):
+    await asyncio.sleep(0.1)  # Simulate I/O
     return x + y
 
-# Enqueue task
-task_id = queue.enqueue(my_task, args=(5, 10))
+# Start worker
+worker.start()
 
-# Get result
-result = queue.get_result(task_id)
-print(f"Result: {result}")  # Result: 15
+# Enqueue both types of tasks
+sync_task_id = queue.enqueue(sync_task, func_args=dict(x=5, y=10))
+async_task_id = queue.enqueue(async_task, func_args=dict(x=5, y=10))
+
+# Get results
+sync_result = worker.get_result(sync_task_id)  # 50
+async_result = worker.get_result(async_task_id)  # 15
 ```
+
+### Using fsspec for Cloud Storage
+
+```python
+from omniq import OmniQ
+from omniq.queue import FileTaskQueue
+from omniq.storage import FileResultStorage
+
+# Using local filesystem with DirFileSystem
+local_queue = FileTaskQueue(
+    project_name="my_project",
+    base_dir="/path/to/local/storage",
+    queues=["high", "medium", "low"]
+)
+
+# Using S3 (requires s3fs package)
+s3_queue = FileTaskQueue(
+    project_name="my_project",
+    base_dir="s3://my-bucket/omniq",
+    queues=["high", "medium", "low"],
+    storage_options={"key": "access_key", "secret": "secret_key"}
+)
+
+# Using Azure Blob Storage (requires adlfs package)
+azure_queue = FileTaskQueue(
+    project_name="my_project",
+    base_dir="abfs://my-container/omniq",
+    queues=["high", "medium", "low"],
+    storage_options={"account_name": "myaccount", "account_key": "mykey"}
+)
+
+# Using Google Cloud Storage (requires gcsfs package)
+gcs_queue = FileTaskQueue(
+    project_name="my_project",
+    base_dir="gs://my-bucket/omniq",
+    queues=["high", "medium", "low"],
+    storage_options={"token": "path/to/token.json"}
+)
+
+# Create OmniQ with cloud storage
+oq = OmniQ(
+    project_name="my_project",
+    task_queue=s3_queue,
+    result_store=FileResultStorage(base_dir="s3://my-bucket/omniq/results")
+)
+```
+
+## Conclusion
+
+OmniQ is a flexible and powerful task queue library that provides a wide range of features for task processing, scheduling, and monitoring. Its modular architecture and multiple configuration options make it suitable for a variety of use cases, from simple local task processing to complex distributed systems.
