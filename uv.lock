@@ -865,6 +865,11 @@ gevent = [
     { name = "gevent" },
 ]
 
+[package.dev-dependencies]
+dev = [
+    { name = "rq" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "adlfs", marker = "extra == 'cloud'", specifier = ">=2023.1.0" },
@@ -891,6 +896,9 @@ requires-dist = [
     { name = "s3fs", marker = "extra == 'cloud'", specifier = ">=2023.1.0" },
 ]
 provides-extras = ["cloud", "gevent", "dev"]
+
+[package.metadata.requires-dev]
+dev = [{ name = "rq", specifier = ">=2.4.0" }]
 
 [[package]]
 name = "packaging"
@@ -1163,6 +1171,19 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/42/f2/05f29bc3913aea15eb670be136045bf5c5bbf4b99ecb839da9b422bb2c85/requests-oauthlib-2.0.0.tar.gz", hash = "sha256:b3dffaebd884d8cd778494369603a9e7b58d29111bf6b41bdc2dcd87203af4e9", size = 55650 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/3b/5d/63d4ae3b9daea098d5d6f5da83984853c1bbacd5dc826764b249fe119d24/requests_oauthlib-2.0.0-py2.py3-none-any.whl", hash = "sha256:7dd8a5c40426b779b0868c404bdef9768deccf22749cde15852df527e6269b36", size = 24179 },
+]
+
+[[package]]
+name = "rq"
+version = "2.4.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "click" },
+    { name = "redis" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/83/f2/af00f6c89131ccd8dfe408e75ea631fd0c572785d7d69701b0a656171da0/rq-2.4.0.tar.gz", hash = "sha256:750bab5dbb7cf1ec8a0aa2ebe8949472fa58fc121afd446c7bf5f7797f5e0655", size = 661530 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/34/ef/4239a17f056ad7a864d53fec920886e017cf50c1494ee8ab05d44cc46799/rq-2.4.0-py3-none-any.whl", hash = "sha256:4b854d27ad0d9687b9e6f686e001a3043807694ace5340a3f9697b42c6a9c65a", size = 106353 },
 ]
 
 [[package]]
