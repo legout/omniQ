@@ -1,0 +1,26 @@
+# OmniQ configuration for testing and development
+# Uses memory storage for all components for fast, ephemeral testing
+
+project_name: "test_omniq"
+
+# All components use memory storage (no persistence)
+task_queue_backend:
+  backend_type: "memory"
+
+result_storage_backend:
+  backend_type: "memory"
+
+event_storage_backend:
+  backend_type: "memory"
+
+schedule_storage_backend:
+  backend_type: "memory"
+
+# Test-friendly settings
+default_queue: "test"
+default_ttl: 300  # 5 minutes (short for testing)
+default_result_ttl: 600  # 10 minutes
+
+# Minimal logging for tests
+log_level: "WARNING"
+disable_logging: false

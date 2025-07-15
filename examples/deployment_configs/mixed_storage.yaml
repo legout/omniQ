@@ -1,0 +1,47 @@
+# Example OmniQ configuration with independent storage backends
+# This demonstrates how to use different storage backends for different components
+
+project_name: "production_omniq"
+
+# Task Queue: Use SQLite for reliable task persistence
+task_queue_backend:
+  backend_type: "sqlite"
+  url: "sqlite:///data/tasks.db"
+  config:
+    timeout: 30.0
+    journal_mode: "WAL"
+    synchronous: "NORMAL"
+
+# Result Storage: Use file system for large result data
+result_storage_backend:
+  backend_type: "file"
+  config:
+    base_dir: "/var/omniq/results"
+    serialization_format: "json"
+    fsspec_uri: null  # Use local filesystem
+
+# Event Storage: Use memory for fast event logging during development
+# In production, you might want to use a persistent backend
+event_storage_backend:
+  backend_type: "memory"
+
+# Schedule Storage: Use SQLite (separate database for schedules)
+schedule_storage_backend:
+  backend_type: "sqlite"
+  url: "sqlite:///data/schedules.db"
+  config:
+    timeout: 30.0
+    journal_mode: "WAL"
+
+# Default settings
+default_queue: "default"
+default_ttl: 3600  # 1 hour
+default_result_ttl: 86400  # 24 hours
+
+# Logging configuration
+log_level: "INFO"
+disable_logging: false
+component_log_levels:
+  "omniq.storage": "DEBUG"
+  "omniq.queue": "INFO"
+  "omniq.workers": "WARNING"

@@ -1,0 +1,26 @@
+# Simple OmniQ configuration using SQLite for all components
+# Good for single-machine deployments or development
+
+project_name: "simple_omniq"
+
+# All components use SQLite with the same database
+task_queue_backend:
+  backend_type: "sqlite"
+  url: "sqlite:///omniq.db"
+
+result_storage_backend:
+  backend_type: "sqlite"
+  url: "sqlite:///omniq.db"
+
+event_storage_backend:
+  backend_type: "sqlite"
+  url: "sqlite:///omniq.db"
+
+schedule_storage_backend:
+  backend_type: "sqlite"
+  url: "sqlite:///omniq.db"
+
+# Default settings
+default_queue: "default"
+default_ttl: 7200  # 2 hours
+log_level: "INFO"
