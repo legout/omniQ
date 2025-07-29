@@ -1,0 +1,11 @@
+2025-07-15 21:16:53,615 - INFO - context_portal_mcp.main - File logging configured to: /Volumes/WD_Blue_1TB/coding/libs/omniQ/context_portal/logs/conport.log
+2025-07-15 21:16:53,615 - INFO - context_portal_mcp.main - Parsed CLI args: Namespace(host='127.0.0.1', port=8000, workspace_id='/Volumes/WD_Blue_1TB/coding/libs/omniQ', mode='stdio', log_file='logs/conport.log', log_level='INFO')
+2025-07-15 21:16:53,616 - INFO - context_portal_mcp.main - Starting ConPort in STDIO mode using FastMCP for initial CLI arg workspace_id: /Volumes/WD_Blue_1TB/coding/libs/omniQ
+2025-07-15 21:16:53,616 - INFO - context_portal_mcp.db.database - Alembic.ini not found. Creating at /Volumes/WD_Blue_1TB/coding/libs/omniQ/context_portal/alembic.ini
+2025-07-15 21:16:53,616 - INFO - context_portal_mcp.db.database - Alembic env.py not found. Creating at /Volumes/WD_Blue_1TB/coding/libs/omniQ/context_portal/alembic/env.py
+2025-07-15 21:16:53,616 - INFO - context_portal_mcp.db.database - Initial schema not found. Creating at /Volumes/WD_Blue_1TB/coding/libs/omniQ/context_portal/alembic/versions/2025_06_17_initial_schema.py
+2025-07-15 21:16:53,616 - INFO - context_portal_mcp.main - STDIO mode: Using effective_workspace_id '/Volumes/WD_Blue_1TB/coding/libs/omniQ'. Database directory will be created on first actual DB use.
+2025-07-15 21:16:53,637 - INFO - context_portal_mcp.main - ConPort FastMCP server lifespan starting.
+2025-07-15 21:16:53,642 - INFO - mcp.server.lowlevel.server - Processing request of type ListToolsRequest
+2025-07-15 21:16:53,651 - INFO - mcp.server.lowlevel.server - Processing request of type ListResourcesRequest
+2025-07-15 21:16:53,654 - INFO - mcp.server.lowlevel.server - Processing request of type ListResourceTemplatesRequest
