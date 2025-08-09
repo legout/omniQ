@@ -17,7 +17,7 @@ import tempfile
 
 # Import OmniQ components
 from omniq import OmniQ
-from omniq.queue import FileTaskQueue
+from omniq.queue import FileQueue
 from omniq.results import FileResultStorage
 from omniq.workers import AsyncWorker
 
@@ -46,21 +46,17 @@ def demonstrate_local_filesystem():
         
         print(f"Using temporary directory: {base_path}")
         
-        # Create FileTaskQueue and FileResultStorage with local filesystem
-        queue = FileTaskQueue(
-            project_name="local_demo",
-            base_dir=str(base_path / "tasks"),
-            queues=["high", "medium", "low"]
+        # Create FileQueue and FileResultStorage with local filesystem
+        queue = FileQueue(
+            base_dir=str(base_path / "tasks")
         )
         
         result_store = FileResultStorage(
-            project_name="local_demo",
             base_dir=str(base_path / "results")
         )
         
         # Create OmniQ instance
         oq = OmniQ(
-            project_name="local_demo",
             task_queue=queue,
             result_store=result_store
         )
@@ -72,23 +68,27 @@ def demonstrate_local_filesystem():
             task_ids = []
             
             # Enqueue tasks to different queues
-            task_ids.append(oq.enqueue(
-                sample_task, 
-                func_args={"data": "Task 1", "multiplier": 2},
-                queue_name="high"
-            ))
+            from omniq.models.task import Task
+            task1 = Task(
+                func_name=sample_task.__name__,
+                args=("Task 1",),
+                kwargs={"multiplier": 2}
+            )
+            task_ids.append(oq.enqueue(task=task1))
             
-            task_ids.append(oq.enqueue(
-                sample_task,
-                func_args={"data": "Task 2", "multiplier": 3}, 
-                queue_name="medium"
-            ))
+            task2 = Task(
+                func_name=sample_task.__name__,
+                args=("Task 2",),
+                kwargs={"multiplier": 3}
+            )
+            task_ids.append(oq.enqueue(task=task2))
             
-            task_ids.append(oq.enqueue(
-                sample_task,
-                func_args={"data": "Task 3", "multiplier": 1},
-                queue_name="low"
-            ))
+            task3 = Task(
+                func_name=sample_task.__name__,
+                args=("Task 3",),
+                kwargs={"multiplier": 1}
+            )
+            task_ids.append(oq.enqueue(task=task3))
             
             print(f"Enqueued {len(task_ids)} tasks")
             
@@ -115,21 +115,17 @@ def demonstrate_memory_filesystem():
     print("DEMONSTRATING MEMORY FILESYSTEM STORAGE")
     print("=" * 60)
     
-    # Create FileTaskQueue and FileResultStorage with memory filesystem
-    queue = FileTaskQueue(
-        project_name="memory_demo",
-        base_dir="memory://memory_demo/tasks",
-        queues=["high", "medium", "low"]
+    # Create FileQueue and FileResultStorage with memory filesystem
+    queue = FileQueue(
+        base_dir="memory://memory_demo/tasks"
     )
     
     result_store = FileResultStorage(
-        project_name="memory_demo",
         base_dir="memory://memory_demo/results"
     )
     
     # Create OmniQ instance
     oq = OmniQ(
-        project_name="memory_demo",
         task_queue=queue,
         result_store=result_store
     )
@@ -141,17 +137,20 @@ def demonstrate_memory_filesystem():
         # Enqueue some tasks
         task_ids = []
         
-        task_ids.append(oq.enqueue(
-            sample_task,
-            func_args={"data": "Memory Task 1", "multiplier": 5},
-            queue_name="high"
-        ))
+        from omniq.models.task import Task
+        task1 = Task(
+            func_name=sample_task.__name__,
+            args=("Memory Task 1",),
+            kwargs={"multiplier": 5}
+        )
+        task_ids.append(oq.enqueue(task=task1))
         
-        task_ids.append(oq.enqueue(
-            sample_task,
-            func_args={"data": "Memory Task 2", "multiplier": 2},
-            queue_name="medium"
-        ))
+        task2 = Task(
+            func_name=sample_task.__name__,
+            args=("Memory Task 2",),
+            kwargs={"multiplier": 2}
+        )
+        task_ids.append(oq.enqueue(task=task2))
         
         print(f"Enqueued {len(task_ids)} tasks to memory storage")
         
@@ -174,20 +173,16 @@ async def demonstrate_async_with_memory():
     # Create async components
     from omniq import AsyncOmniQ
     
-    queue = FileTaskQueue(
-        project_name="async_memory_demo",
-        base_dir="memory://async_demo/tasks",
-        queues=["high", "medium", "low"]
+    queue = FileQueue(
+        base_dir="memory://async_demo/tasks"
     )
     
     result_store = FileResultStorage(
-        project_name="async_memory_demo",
         base_dir="memory://async_demo/results"
     )
     
     # Create AsyncOmniQ instance
     oq = AsyncOmniQ(
-        project_name="async_memory_demo",
         task_queue=queue,
         result_store=result_store
     )
@@ -199,17 +194,20 @@ async def demonstrate_async_with_memory():
         # Enqueue async tasks
         task_ids = []
         
-        task_ids.append(await oq.enqueue(
-            async_sample_task,
-            func_args={"data": "Async Task 1", "delay": 0.2},
-            queue_name="high"
-        ))
+        from omniq.models.task import Task
+        task1 = Task(
+            func_name=async_sample_task.__name__,
+            args=("Async Task 1",),
+            kwargs={"delay": 0.2}
+        )
+        task_ids.append(await oq.enqueue(task=task1))
         
-        task_ids.append(await oq.enqueue(
-            async_sample_task,
-            func_args={"data": "Async Task 2", "delay": 0.1},
-            queue_name="medium"
-        ))
+        task2 = Task(
+            func_name=async_sample_task.__name__,
+            args=("Async Task 2",),
+            kwargs={"delay": 0.1}
+        )
+        task_ids.append(await oq.enqueue(task=task2))
         
         print(f"Enqueued {len(task_ids)} async tasks")
         
@@ -232,20 +230,17 @@ def demonstrate_cloud_storage_examples():
     print("""
 # AMAZON S3 EXAMPLE
 # Requires: pip install s3fs
-# 
-# s3_queue = FileTaskQueue(
-#     project_name="s3_demo",
+#
+# s3_queue = FileQueue(
 #     base_dir="s3://my-bucket/omniq/tasks",
-#     queues=["high", "medium", "low"],
 #     storage_options={
 #         "key": "your_access_key_id",
 #         "secret": "your_secret_access_key",
 #         "region": "us-east-1"  # Optional
 #     }
 # )
-# 
+#
 # s3_results = FileResultStorage(
-#     project_name="s3_demo",
 #     base_dir="s3://my-bucket/omniq/results",
 #     storage_options={
 #         "key": "your_access_key_id",
@@ -264,19 +259,16 @@ def demonstrate_cloud_storage_examples():
 # AZURE BLOB STORAGE EXAMPLE  
 # Requires: pip install adlfs
 #
-# azure_queue = FileTaskQueue(
-#     project_name="azure_demo",
+# azure_queue = FileQueue(
 #     base_dir="abfs://my-container/omniq/tasks",
-#     queues=["high", "medium", "low"],
 #     storage_options={
 #         "account_name": "mystorageaccount",
 #         "account_key": "your_account_key"
 #         # Alternative: "sas_token": "your_sas_token"
 #     }
 # )
-# 
+#
 # azure_results = FileResultStorage(
-#     project_name="azure_demo", 
 #     base_dir="abfs://my-container/omniq/results",
 #     storage_options={
 #         "account_name": "mystorageaccount",
@@ -294,18 +286,15 @@ def demonstrate_cloud_storage_examples():
 # GOOGLE CLOUD STORAGE EXAMPLE
 # Requires: pip install gcsfs
 #
-# gcs_queue = FileTaskQueue(
-#     project_name="gcs_demo",
-#     base_dir="gs://my-bucket/omniq/tasks", 
-#     queues=["high", "medium", "low"],
+# gcs_queue = FileQueue(
+#     base_dir="gs://my-bucket/omniq/tasks",
 #     storage_options={
 #         "token": "/path/to/service-account.json"
 #         # Alternative: "token": "cloud" for default credentials
 #     }
 # )
-# 
+#
 # gcs_results = FileResultStorage(
-#     project_name="gcs_demo",
 #     base_dir="gs://my-bucket/omniq/results",
 #     storage_options={
 #         "token": "/path/to/service-account.json"
@@ -335,10 +324,8 @@ def demonstrate_cloud_storage_examples():
 # export GOOGLE_APPLICATION_CREDENTIALS="/path/to/service-account.json"
 #
 # Then create storage without explicit storage_options:
-# cloud_queue = FileTaskQueue(
-#     project_name="cloud_demo",
+# cloud_queue = FileQueue(
 #     base_dir="s3://my-bucket/omniq",  # or abfs:// or gs://
-#     queues=["high", "medium", "low"]
 # )
 """)
 

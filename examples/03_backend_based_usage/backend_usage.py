@@ -15,10 +15,8 @@ import datetime as dt
 from pathlib import Path
 
 from omniq import OmniQ, AsyncOmniQ
-from omniq.backend import SQLiteBackend
-from omniq.queue import TaskQueue
-from omniq.results import ResultStore
-from omniq.events import EventStore
+from omniq.queue import FileQueue
+from omniq.results import SQLiteResultStorage
 
 
 def simple_task(name: str, multiplier: int = 1) -> str:
@@ -44,18 +42,14 @@ def single_backend_example():
     """
     print("=== Single Backend Example ===")
     
-    # Create a SQLite backend - all components will use this database
-    sqlite_backend = SQLiteBackend({
-        "db_path": "examples/03_backend_based_usage/single_backend.db",
-        "create_dirs": True
-    })
+    # Create components directly
+    queue = FileQueue(base_dir="examples/03_backend_based_usage/queue_storage")
+    result_store = SQLiteResultStorage(base_dir="examples/03_backend_based_usage/result_storage")
     
-    # Create OmniQ instance from the backend
-    # All components (queue, result storage, event storage) will use SQLite
-    oq = OmniQ.from_backend(
-        backend=sqlite_backend,
-        worker_type="thread_pool",
-        worker_config={"max_workers": 4}
+    # Create OmniQ instance with components
+    oq = OmniQ(
+        task_queue=queue,
+        result_store=result_store
     )
     
     print(f"Created OmniQ with SQLite backend: {sqlite_backend}")
@@ -104,35 +98,17 @@ def mixed_backend_example():
     
     # Create different backends for different purposes
     
-    # Fast file-based backend for task queue (temporary storage)
-    file_backend = FileBackend({
-        "base_dir": "examples/03_backend_based_usage/queue_storage",
-        "create_dirs": True
-    })
+    # Create components with different backends
+    queue = FileQueue(base_dir="examples/03_backend_based_usage/queue_storage")
+    result_store = SQLiteResultStorage(base_dir="examples/03_backend_based_usage/result_storage")
     
-    # Persistent SQLite backend for result storage (long-term storage)
-    sqlite_backend = SQLiteBackend({
-        "db_path": "examples/03_backend_based_usage/results.db",
-        "create_dirs": True
-    })
+    print(f"File queue: {queue}")
+    print(f"SQLite result store: {result_store}")
     
-    # Another SQLite backend for event storage (audit trail)
-    event_backend = SQLiteBackend({
-        "db_path": "examples/03_backend_based_usage/events.db",
-        "create_dirs": True
-    })
-    
-    print(f"File backend for queue: {file_backend}")
-    print(f"SQLite backend for results: {sqlite_backend}")
-    print(f"SQLite backend for events: {event_backend}")
-    
-    # Create OmniQ with mixed backends
-    oq = OmniQ.from_backend(
-        backend=file_backend,              # Task queue uses file storage
-        result_store_backend=sqlite_backend,  # Results use SQLite
-        event_store_backend=event_backend,    # Events use separate SQLite DB
-        worker_type="async",
-        worker_config={"max_workers": 6}
+    # Create OmniQ with mixed components
+    oq = OmniQ(
+        task_queue=queue,
+        result_store=result_store
     )
     
     # Use the OmniQ instance
@@ -177,39 +153,29 @@ def component_creation_example():
     """
     print("=== Component Creation Example ===")
     
-    # Create backends
-    sqlite_backend = SQLiteBackend({
-        "db_path": "examples/03_backend_based_usage/components.db",
-        "create_dirs": True
-    })
-    
-    # Create individual components from the backend
-    task_queue = TaskQueue.from_backend(
-        backend=sqlite_backend,
-        queues=["high", "medium", "low"]
-    )
-    
-    result_store = ResultStore.from_backend(sqlite_backend)
-    event_store = EventStore.from_backend(sqlite_backend)
+    # Create components directly
+    task_queue = FileQueue(base_dir="examples/03_backend_based_usage/component_queue")
+    result_store = SQLiteResultStorage(base_dir="examples/03_backend_based_usage/component_result")
     
     print(f"Created task queue: {task_queue}")
     print(f"Created result store: {result_store}")
-    print(f"Created event store: {event_store}")
     
     # Use components directly
-    with task_queue, result_store, event_store:
+    with task_queue, result_store:
         # Enqueue a task directly to the queue
-        task_id = task_queue.enqueue(
-            func=simple_task,
-            func_kwargs={"name": "Component User", "multiplier": 2},
-            queue_name="medium"
+        from omniq.models.task import Task
+        task = Task(
+            func_name=simple_task.__name__,
+            args=(),
+            kwargs={"name": "Component User", "multiplier": 2}
         )
+        task_id = task_queue.enqueue(task=task)
         
         print(f"Enqueued task directly to queue: {task_id}")
         
         # Check queue size
-        queue_size = task_queue.get_queue_size("medium")
-        print(f"Queue 'medium' size: {queue_size}")
+        queue_size = task_queue.get_queue_size("default")
+        print(f"Queue 'default' size: {queue_size}")
         
         # List all queues
         queues = task_queue.list_queues()
@@ -229,17 +195,14 @@ async def async_backend_example():
     """
     print("=== Async Backend Example ===")
     
-    # Create backend
-    sqlite_backend = SQLiteBackend({
-        "db_path": "examples/03_backend_based_usage/async_backend.db",
-        "create_dirs": True
-    })
+    # Create components
+    queue = FileQueue(base_dir="examples/03_backend_based_usage/async_queue")
+    result_store = SQLiteResultStorage(base_dir="examples/03_backend_based_usage/async_result")
     
-    # Create AsyncOmniQ instance from backend
-    async_oq = await AsyncOmniQ.from_backend(
-        backend=sqlite_backend,
-        worker_type="async",
-        worker_config={"max_workers": 8}
+    # Create AsyncOmniQ instance with components
+    async_oq = AsyncOmniQ(
+        task_queue=queue,
+        result_store=result_store
     )
     
     print(f"Created AsyncOmniQ with backend: {sqlite_backend}")
@@ -288,28 +251,22 @@ def cleanup_example_files():
     """Clean up example database files."""
     print("=== Cleanup ===")
     
-    example_files = [
-        "examples/03_backend_based_usage/single_backend.db",
-        "examples/03_backend_based_usage/results.db",
-        "examples/03_backend_based_usage/events.db",
-        "examples/03_backend_based_usage/components.db",
-        "examples/03_backend_based_usage/async_backend.db"
+    example_dirs = [
+        "examples/03_backend_based_usage/queue_storage",
+        "examples/03_backend_based_usage/result_storage",
+        "examples/03_backend_based_usage/component_queue",
+        "examples/03_backend_based_usage/component_result",
+        "examples/03_backend_based_usage/async_queue",
+        "examples/03_backend_based_usage/async_result"
     ]
     
-    for file_path in example_files:
-        try:
-            Path(file_path).unlink(missing_ok=True)
-            print(f"Cleaned up: {file_path}")
-        except Exception as e:
-            print(f"Could not clean up {file_path}: {e}")
-    
-    # Clean up queue storage directory
     import shutil
-    try:
-        shutil.rmtree("examples/03_backend_based_usage/queue_storage", ignore_errors=True)
-        print("Cleaned up: queue_storage directory")
-    except Exception as e:
-        print(f"Could not clean up queue_storage: {e}")
+    for dir_path in example_dirs:
+        try:
+            shutil.rmtree(dir_path, ignore_errors=True)
+            print(f"Cleaned up: {dir_path}")
+        except Exception as e:
+            print(f"Could not clean up {dir_path}: {e}")
 
 
 def main():

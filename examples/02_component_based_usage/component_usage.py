@@ -6,7 +6,7 @@ flexibility by decoupling the task queue, result storage, and worker components.
 """
 
 import datetime as dt
-from omniq.queue import FileTaskQueue
+from omniq.queue import FileQueue
 from omniq.results import SQLiteResultStorage
 from omniq.workers import ThreadPoolWorker
 
@@ -15,20 +15,17 @@ def main():
     """Main example showing component-based usage"""
     
     # Create components individually
-    queue = FileTaskQueue(
-        project_name="my_project",
-        base_dir="some/path",
-        queues=["low", "medium", "high"]
+    queue = FileQueue(
+        base_dir="some/path"
     )
 
     result_store = SQLiteResultStorage(
-        project_name="my_project",
         base_dir="some/path"
     )
 
     # Create worker with reference to queue and result store
     worker = ThreadPoolWorker(
-        queue=queue,
+        task_queue=queue,
         result_store=result_store,
         max_workers=20
     )
@@ -44,16 +41,21 @@ def main():
 
     print("Enqueueing task...")
     # Enqueue a task
+    from omniq.models.task import Task
+    task = Task(
+        func_name=simple_task.__name__,
+        args=("Tom",),
+        kwargs={}
+    )
     task_id = queue.enqueue(
-        func=simple_task,
-        func_args=dict(name="Tom"),
+        task=task,
         queue_name="low"
     )
 
     print(f"Enqueued task with ID: {task_id}")
 
     # Get the result
-    result = result_store.get(task_id)
+    result = result_store.get_result(task_id)
     print(f"Task result: {result}")
 
     print("Stopping worker...")
@@ -70,24 +72,27 @@ def context_manager_example():
         return name
 
     # Using context managers for automatic resource cleanup
-    with FileTaskQueue(
-        project_name="my_project",
-        base_dir="some/path",
-        queues=["low", "medium", "high"]
+    with FileQueue(
+        base_dir="some/path"
     ) as queue, SQLiteResultStorage(
-        project_name="my_project",
         base_dir="some/path"
     ) as result_store, ThreadPoolWorker(
-        queue=queue, 
+        task_queue=queue,
         result_store=result_store,
         max_workers=10
     ) as worker:
         
         print("Enqueueing task with context managers...")
-        task_id = queue.enqueue(simple_task, func_args=dict(name="Tom"))
+        from omniq.models.task import Task
+        task = Task(
+            func_name=simple_task.__name__,
+            args=("Tom",),
+            kwargs={}
+        )
+        task_id = queue.enqueue(task=task)
         print(f"Enqueued task with ID: {task_id}")
         
-        result = result_store.get(task_id)
+        result = result_store.get_result(task_id)
         print(f"Context manager result: {result}")
 
 
@@ -95,7 +100,6 @@ def mixed_backends_example():
     """Example showing how to mix different backends for different components"""
     
     from omniq.results import FileResultStorage
-    from omniq.events import PostgresEventStorage
     from omniq.workers import AsyncWorker
     
     # Define a task
@@ -105,32 +109,19 @@ def mixed_backends_example():
 
     # Mix different backends:
     # - File-based task queue for simplicity
-    # - SQLite result storage for structured data
-    # - PostgreSQL event storage for advanced querying
-    queue = FileTaskQueue(
-        project_name="mixed_example",
-        base_dir="./queue_storage",
-        queues=["processing"]
+    # - File result storage for structured data
+    queue = FileQueue(
+        base_dir="./queue_storage"
     )
 
     result_store = FileResultStorage(
-        project_name="mixed_example", 
         base_dir="./result_storage"
-    )
-
-    event_store = PostgresEventStorage(
-        project_name="mixed_example",
-        host="localhost",
-        port=5432,
-        username="postgres",
-        password="secret"
     )
 
     # Use async worker for better I/O performance
     worker = AsyncWorker(
-        queue=queue,
+        task_queue=queue,
         result_store=result_store,
-        event_store=event_store,
         max_workers=5
     )
 
@@ -140,24 +131,26 @@ def mixed_backends_example():
         # Enqueue multiple tasks to different queues
         task_ids = []
         for i in range(3):
-            task_id = queue.enqueue(
-                func=simple_task,
-                func_args=dict(name=f"Task-{i+1}"),
-                queue_name="processing"
+            from omniq.models.task import Task
+            task = Task(
+                func_name=simple_task.__name__,
+                args=(f"Task-{i+1}",),
+                kwargs={}
             )
+            task_id = queue.enqueue(task=task)
             task_ids.append(task_id)
             print(f"Enqueued task {i+1} with ID: {task_id}")
 
         # Get results
         for task_id in task_ids:
-            result = result_store.get(task_id)
+            result = result_store.get_result(task_id)
             print(f"Result for {task_id}: {result}")
 
 
 def priority_queue_example():
     """Example demonstrating priority queue processing"""
     
-    from omniq.queue import SQLiteTaskQueue
+    from omniq.queue import SQLiteQueue
     from omniq.workers import ThreadPoolWorker
     
     # Define tasks with different priorities
@@ -174,19 +167,16 @@ def priority_queue_example():
         return f"low_result: {message}"
 
     # Create SQLite queue with priority queues
-    queue = SQLiteTaskQueue(
-        project_name="priority_example",
-        base_dir="./priority_storage",
-        queues=["high", "medium", "low"]  # Worker processes in this order
+    queue = SQLiteQueue(
+        base_dir="./priority_storage"
     )
 
     result_store = SQLiteResultStorage(
-        project_name="priority_example",
         base_dir="./priority_storage"
     )
 
     worker = ThreadPoolWorker(
-        queue=queue,
+        task_queue=queue,
         result_store=result_store,
         max_workers=3
     )
@@ -198,34 +188,38 @@ def priority_queue_example():
         task_ids = []
         
         # Enqueue low priority first
-        low_id = queue.enqueue(
-            func=low_priority_task,
-            func_args=dict(message="This should run last"),
-            queue_name="low"
+        from omniq.models.task import Task
+        low_task = Task(
+            func_name=low_priority_task.__name__,
+            args=("This should run last",),
+            kwargs={}
         )
+        low_id = queue.enqueue(task=low_task, queue_name="low")
         task_ids.append(("low", low_id))
         
         # Then normal priority
-        normal_id = queue.enqueue(
-            func=normal_task,
-            func_args=dict(message="This should run second"),
-            queue_name="medium"
+        normal_task_obj = Task(
+            func_name=normal_task.__name__,
+            args=("This should run second",),
+            kwargs={}
         )
+        normal_id = queue.enqueue(task=normal_task_obj, queue_name="medium")
         task_ids.append(("medium", normal_id))
         
         # Finally high priority (but will be processed first)
-        high_id = queue.enqueue(
-            func=urgent_task,
-            func_args=dict(message="This should run first"),
-            queue_name="high"
+        high_task_obj = Task(
+            func_name=urgent_task.__name__,
+            args=("This should run first",),
+            kwargs={}
         )
+        high_id = queue.enqueue(task=high_task_obj, queue_name="high")
         task_ids.append(("high", high_id))
 
         print("Tasks enqueued. Worker will process high -> medium -> low priority.")
         
         # Get results
         for priority, task_id in task_ids:
-            result = result_store.get(task_id)
+            result = result_store.get_result(task_id)
             print(f"[{priority}] Result: {result}")
 
 

@@ -1,223 +1,236 @@
 # Examples
 
-This section will provide a variety of examples to demonstrate OmniQ's features.
+This section provides practical examples demonstrating various features and usage patterns of OmniQ. These examples are designed to help you quickly understand how to integrate OmniQ into your projects.
 
-### Component-Based Usage
+## 1. Basic Usage
 
-```python
-from omniq.queue import FileTaskQueue
-from omniq.storage import SQLiteResultStorage
-from omniq.workers import ThreadPoolWorker
-import datetime as dt
+This example covers the fundamental concepts of enqueuing and retrieving tasks with both synchronous and asynchronous OmniQ instances.
 
-# Create components individually
-queue = FileTaskQueue(
-    project_name="my_project",
-    base_dir="some/path",
-    queues=["low", "medium", "high"]
-)
+*   **Synchronous Example**:
+    ```python
+    from omniq import OmniQ
+    import time
 
-result_store = SQLiteResultStorage(
-    project_name="my_project",
-    base_dir="some/path"
-)
+    def simple_sync_task(message):
+        print(f"Sync task received: {message}")
+        time.sleep(0.5)
+        return f"Processed: {message}"
 
-# Create worker with reference to queue and result store
-worker = ThreadPoolWorker(
-    queue=queue,
-    result_store=result_store,
-    max_workers=20
-)
+    with OmniQ() as omniq:
+        print("Enqueuing synchronous task...")
+        task_id = omniq.enqueue(simple_sync_task, "Hello, Sync World!")
+        result = omniq.get_result(task_id)
+        print(f"Synchronous task result: {result}")
+    ```
 
-# Define a task
-def simple_task(name):
-    print(f"Hello {name}")
-    return name
+*   **Asynchronous Example**:
+    ```python
+    import asyncio
+    from omniq import AsyncOmniQ
 
-# Start the worker
-worker.start()
+    async def simple_async_task(message):
+        print(f"Async task received: {message}")
+        await asyncio.sleep(0.5)
+        return f"Processed async: {message}"
 
-# Enqueue a task
-task_id = queue.enqueue(
-    func=simple_task,
-    func_args=dict(name="Tom"),
-    queue_name="low"
-)
+    async def main_async_basic():
+        async with AsyncOmniQ() as omniq:
+            print("Enqueuing asynchronous task...")
+            task_id = await omniq.enqueue(simple_async_task, "Hello, Async World!")
+            result = await omniq.get_result(task_id)
+            print(f"Asynchronous task result: {result}")
 
-# Get the result
-result = result_store.get(task_id)
+    if __name__ == "__main__":
+        asyncio.run(main_async_basic())
+    ```
 
-# Stop the worker
-worker.stop()
+## 2. Using Different Backends
 
-# Using context managers
-with FileTaskQueue(...) as queue, SQLiteResultStorage(...) as result_store, ThreadPoolWorker(queue=queue, result_store=result_store) as worker:
-    task_id = queue.enqueue(simple_task, func_args=dict(name="Tom"))
-    result = result_store.get(task_id)
-```
-
-### Configuration-Based Usage
+Demonstrates how to configure OmniQ to use different storage backends for task queues, results, and events.
 
 ```python
-from omniq import OmniQ
-from omniq.models import FileTaskQueueConfig, SQLiteResultStorageConfig
-
-# Create components using specific config classes
-from omniq.queue import FileTaskQueue
-from omniq.storage import SQLiteResultStorage
-
-queue = FileTaskQueue.from_config(
-    FileTaskQueueConfig(
-        project_name="my_project",
-        base_dir="some/path",
-        queues=["high", "medium", "low"]
-    )
-)
-
-result_store = SQLiteResultStorage.from_config(
-    SQLiteResultStorageConfig(
-        project_name="my_project",
-        base_dir="some/path"
-    )
-)
-
-# Load from YAML file
-oq = OmniQ.from_config_file("config.yaml")
-
-# Example config.yaml:
-"""
-project_name: my_project
-task_queue:
-  type: file
-  config:
-    base_dir: some/path
-    queues:
-      - high
-      - medium
-      - low
-
-result_store:
-  type: sqlite
-  config:
-    base_dir: some/path
-
-event_store:
-  type: postgres
-  config:
-    host: localhost
-    port: 5432
-    username: postgres
-    password: secret
-
-worker:
-  type: thread_pool
-  config:
-    max_workers: 10
-"""
-```
-
-### Working with Multiple Queues
-
-```python
-from omniq.queue import PostgresTaskQueue
-from omniq.workers import ThreadPoolWorker
-
-# Create PostgreSQL queue with multiple named queues
-queue = PostgresTaskQueue(
-    project_name="my_project",
-    host="localhost",
-    port=5432,
-    username="postgres",
-    password="secret",
-    queues=["high", "medium", "low"]
-)
-
-# Create worker that processes queues in priority order
-worker = ThreadPoolWorker(queue=queue, max_workers=10)
-worker.start()
-
-# Enqueue tasks to different queues
-high_task_id = queue.enqueue(simple_task, func_args=dict(name="High Priority"), queue_name="high")
-medium_task_id = queue.enqueue(simple_task, func_args=dict(name="Medium Priority"), queue_name="medium")
-low_task_id = queue.enqueue(simple_task, func_args=dict(name="Low Priority"), queue_name="low")
-
-# Worker will process "high" queue tasks first, then "medium", then "low"
-```
-
-### Handling Both Sync and Async Tasks
-
-```python
-from omniq import OmniQ
-from omniq.queue import FileTaskQueue
-from omniq.workers import AsyncWorker
 import asyncio
+from omniq import OmniQ, AsyncOmniQ
+from omniq.config import OmniQConfig
 
-# Create components
-queue = FileTaskQueue(project_name="my_project", base_dir="some/path")
-worker = AsyncWorker(queue=queue, max_workers=10)
+# Configure OmniQ with different backends
+config = OmniQConfig(
+    task_queue_type="sqlite",
+    task_queue_path="tasks.db",
+    result_storage_type="file",
+    result_storage_base_dir="./results_data",
+    event_storage_type="memory"
+)
 
-# Define sync and async tasks
-def sync_task(x, y):
-    return x * y
+def process_data(data):
+    print(f"Processing data: {data}")
+    return data.upper()
 
-async def async_task(x, y):
-    await asyncio.sleep(0.1)  # Simulate I/O
-    return x + y
+async def async_process_data(data):
+    print(f"Processing async data: {data}")
+    await asyncio.sleep(0.1)
+    return data.lower()
 
-# Start worker
-worker.start()
+async def main_backend_example():
+    # Synchronous usage
+    with OmniQ(config=config) as omniq_sync:
+        print("\n--- Synchronous Backend Example ---")
+        sync_task_id = omniq_sync.enqueue(process_data, "sync item")
+        sync_result = omniq_sync.get_result(sync_task_id)
+        print(f"Sync result: {sync_result}")
 
-# Enqueue both types of tasks
-sync_task_id = queue.enqueue(sync_task, func_args=dict(x=5, y=10))
-async_task_id = queue.enqueue(async_task, func_args=dict(x=5, y=10))
+    # Asynchronous usage
+    async with AsyncOmniQ(config=config) as omniq_async:
+        print("\n--- Asynchronous Backend Example ---")
+        async_task_id = await omniq_async.enqueue(async_process_data, "ASYNC ITEM")
+        async_result = await omniq_async.get_result(async_task_id)
+        print(f"Async result: {async_result}")
 
-# Get results
-sync_result = worker.get_result(sync_task_id)  # 50
-async_result = worker.get_result(async_task_id)  # 15
+if __name__ == "__main__":
+    asyncio.run(main_backend_example())
 ```
 
-### Using fsspec for Cloud Storage
+## 3. Working with Multiple Queues
+
+Illustrates how to use named queues to categorize and prioritize tasks.
 
 ```python
-from omniq import OmniQ
-from omniq.queue import FileTaskQueue
-from omniq.storage import FileResultStorage
+import asyncio
+from omniq import AsyncOmniQ
 
-# Using local filesystem with DirFileSystem
-local_queue = FileTaskQueue(
-    project_name="my_project",
-    base_dir="/path/to/local/storage",
-    queues=["high", "medium", "low"]
-)
+async def high_priority_task(item):
+    print(f"High priority processing: {item}")
+    await asyncio.sleep(0.1)
+    return f"HP: {item}"
 
-# Using S3 (requires s3fs package)
-s3_queue = FileTaskQueue(
-    project_name="my_project",
-    base_dir="s3://my-bucket/omniq",
-    queues=["high", "medium", "low"],
-    storage_options={"key": "access_key", "secret": "secret_key"}
-)
+async def low_priority_task(item):
+    print(f"Low priority processing: {item}")
+    await asyncio.sleep(0.5)
+    return f"LP: {item}"
 
-# Using Azure Blob Storage (requires adlfs package)
-azure_queue = FileTaskQueue(
-    project_name="my_project",
-    base_dir="abfs://my-container/omniq",
-    queues=["high", "medium", "low"],
-    storage_options={"account_name": "myaccount", "account_key": "mykey"}
-)
+async def main_multiple_queues():
+    async with AsyncOmniQ() as omniq:
+        print("\n--- Multiple Queues Example ---")
+        
+        # Enqueue tasks to different queues
+        task1_id = await omniq.enqueue(low_priority_task, "data A", queue_name="low_prio")
+        task2_id = await omniq.enqueue(high_priority_task, "data B", queue_name="high_prio")
+        task3_id = await omniq.enqueue(low_priority_task, "data C", queue_name="low_prio")
+        task4_id = await omniq.enqueue(high_priority_task, "data D", queue_name="high_prio")
 
-# Using Google Cloud Storage (requires gcsfs package)
-gcs_queue = FileTaskQueue(
-    project_name="my_project",
-    base_dir="gs://my-bucket/omniq",
-    queues=["high", "medium", "low"],
-    storage_options={"token": "path/to/token.json"}
-)
+        # In a real scenario, workers would be configured to pull from these queues
+        # For demonstration, we'll just retrieve results in order of enqueueing
+        results = await asyncio.gather(
+            omniq.get_result(task1_id),
+            omniq.get_result(task2_id),
+            omniq.get_result(task3_id),
+            omniq.get_result(task4_id)
+        )
+        print("All results received:", results)
 
-# Create OmniQ with cloud storage
-oq = OmniQ(
-    project_name="my_project",
-    task_queue=s3_queue,
-    result_store=FileResultStorage(base_dir="s3://my-bucket/omniq/results")
-)
+if __name__ == "__main__":
+    asyncio.run(main_multiple_queues())
 ```
+
+## 4. Task Scheduling and Dependencies
+
+(This example assumes scheduling and dependency features are implemented)
+
+```python
+# import asyncio
+# from datetime import datetime, timedelta
+# from omniq import AsyncOmniQ
+# from omniq.models import Schedule, Task
+
+# async def dependent_task(data):
+#     print(f"Dependent task received data: {data}")
+#     return f"Processed dependent: {data}"
+
+# async def initial_task():
+#     print("Initial task completed.")
+#     return "initial_data"
+
+# async def main_scheduling():
+#     async with AsyncOmniQ() as omniq:
+#         print("\n--- Scheduling and Dependencies Example ---")
+        
+#         # Schedule a task to run 5 seconds from now
+#         scheduled_time = datetime.now() + timedelta(seconds=5)
+#         schedule = Schedule(run_at=scheduled_time)
+#         scheduled_task_id = await omniq.enqueue(initial_task, schedule=schedule)
+#         print(f"Initial task scheduled for: {scheduled_time}")
+
+#         # Create a task that depends on the initial task
+#         dependent_task_obj = Task(
+#             func=dependent_task,
+#             args=("data from initial",),
+#             depends_on=[scheduled_task_id]
+#         )
+#         dependent_id = await omniq.enqueue(dependent_task_obj)
+#         print(f"Dependent task enqueued, waiting for: {scheduled_task_id}")
+
+#         # Wait for results
+#         initial_result = await omniq.get_result(scheduled_task_id)
+#         dependent_result = await omniq.get_result(dependent_id)
+        
+#         print(f"Initial task result: {initial_result}")
+#         print(f"Dependent task result: {dependent_result}")
+
+# if __name__ == "__main__":
+#     asyncio.run(main_scheduling())
+```
+
+## 5. Event Monitoring
+
+Demonstrates how to set up an event processor to monitor task lifecycle events.
+
+```python
+import asyncio
+from omniq import AsyncOmniQ
+from omniq.config import OmniQConfig
+from omniq.events import AsyncEventProcessor, TaskEvent
+
+async def event_handler(event: TaskEvent):
+    print(f"[{event.timestamp.isoformat()}] Event: {event.event_type} "
+          f"| Task ID: {event.task_id} | Details: {event.details}")
+
+async def main_event_monitoring():
+    # Configure OmniQ to log events to SQLite for easy retrieval
+    config = OmniQConfig(
+        event_storage_type="sqlite",
+        event_storage_path="event_monitor.db"
+    )
+
+    async with AsyncOmniQ(config=config) as omniq:
+        print("\n--- Event Monitoring Example ---")
+        
+        # Enqueue a successful task
+        task_success_id = await omniq.enqueue(lambda: "Task completed successfully!")
+        print(f"Enqueued success task: {task_success_id}")
+        
+        # Enqueue a task that will fail
+        task_fail_id = await omniq.enqueue(lambda: 1 / 0)
+        print(f"Enqueued failing task: {task_fail_id}")
+
+        # Give some time for tasks to process and events to be logged
+        await asyncio.sleep(2)
+
+    # Now, set up an event processor to read and print events
+    # Note: In a real application, the event processor would likely run in a separate process/service
+    event_processor = AsyncEventProcessor(
+        event_storage_type="sqlite",
+        event_storage_path="event_monitor.db"
+    )
+    event_processor.register_handler(event_handler)
+    
+    print("\n--- Fetching and Processing Events ---")
+    # Fetch events that occurred in the last 5 minutes (or specific task IDs)
+    # For this example, we'll just process all available events until done
+    await event_processor.process_events_once() # Process all events currently in storage
+    print("Finished processing events.")
+
+if __name__ == "__main__":
+    asyncio.run(main_event_monitoring())
+```
+
+These examples cover common usage patterns. Explore the [API Documentation](api/backends.md) for a full list of features and advanced configurations.

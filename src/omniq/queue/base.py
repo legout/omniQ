@@ -83,6 +83,15 @@ class BaseQueue(ABC):
         """
         pass
     
+    @abstractmethod
+    async def cleanup_expired_tasks_async(self) -> int:
+        """Clean up expired tasks from all queues asynchronously.
+        
+        Returns:
+            Number of expired tasks cleaned up
+        """
+        pass
+    
     # Sync wrapper methods (to be implemented by concrete classes)
     def enqueue(self, task: Task, queue_name: str = "default") -> None:
         """Synchronous wrapper for enqueue_async."""
@@ -106,4 +115,8 @@ class BaseQueue(ABC):
     
     def list_queues(self) -> List[str]:
         """Synchronous wrapper for list_queues_async."""
+        raise NotImplementedError("Sync wrapper must be implemented by concrete class")
+    
+    def cleanup_expired_tasks(self) -> int:
+        """Synchronous wrapper for cleanup_expired_tasks_async."""
         raise NotImplementedError("Sync wrapper must be implemented by concrete class")

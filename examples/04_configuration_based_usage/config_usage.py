@@ -16,9 +16,8 @@ from pathlib import Path
 
 # Import OmniQ components
 from omniq import OmniQ
-from omniq.models import FileTaskQueueConfig, SQLiteResultStorageConfig
-from omniq.queue import FileTaskQueue
-from omniq.storage import SQLiteResultStorage
+from omniq.queue import FileQueue
+from omniq.results import SQLiteResultStorage
 
 
 def example_task(name: str, multiplier: int = 1) -> str:
@@ -33,24 +32,16 @@ def config_objects_example():
     print("\n=== Example 1: Config Objects (Type-Validated) ===")
     
     # Create components using specific config classes
-    queue = FileTaskQueue.from_config(
-        FileTaskQueueConfig(
-            project_name="config_example",
-            base_dir="./temp/config_objects",
-            queues=["high", "medium", "low"]
-        )
+    queue = FileQueue(
+        base_dir="./temp/config_objects"
     )
     
-    result_store = SQLiteResultStorage.from_config(
-        SQLiteResultStorageConfig(
-            project_name="config_example",
-            base_dir="./temp/config_objects"
-        )
+    result_store = SQLiteResultStorage(
+        base_dir="./temp/config_objects"
     )
     
     # Create OmniQ instance with configured components
     oq = OmniQ(
-        project_name="config_example",
         task_queue=queue,
         result_store=result_store
     )
@@ -61,11 +52,13 @@ def config_objects_example():
     with oq:
         oq.start_worker()
         
-        task_id = oq.enqueue(
-            func=example_task,
-            func_args={"name": "Config Objects", "multiplier": 2},
-            queue_name="high"
+        from omniq.models.task import Task
+        task = Task(
+            func_name=example_task.__name__,
+            args=(),
+            kwargs={"name": "Config Objects", "multiplier": 2}
         )
+        task_id = oq.enqueue(task=task)
         
         print(f"✓ Enqueued task: {task_id}")
         
@@ -84,43 +77,28 @@ def dictionary_config_example():
     """Example 2: Using dictionary-based configuration."""
     print("\n=== Example 2: Dictionary Configuration ===")
     
-    # Define configuration as dictionary
-    config = {
-        "project_name": "dict_example",
-        "task_queue": {
-            "type": "file",
-            "config": {
-                "base_dir": "./temp/dict_config",
-                "queues": ["high", "medium", "low"]
-            }
-        },
-        "result_store": {
-            "type": "sqlite",
-            "config": {
-                "base_dir": "./temp/dict_config"
-            }
-        },
-        "worker": {
-            "type": "thread_pool",
-            "config": {
-                "max_workers": 5
-            }
-        }
-    }
+    # Create components directly
+    queue = FileQueue(base_dir="./temp/dict_config")
+    result_store = SQLiteResultStorage(base_dir="./temp/dict_config")
     
-    # Create OmniQ from dictionary
-    oq = OmniQ.from_dict(config)
+    # Create OmniQ with components
+    oq = OmniQ(
+        task_queue=queue,
+        result_store=result_store
+    )
     print("✓ Created OmniQ from dictionary config")
     
     # Start worker and enqueue a task
     with oq:
         oq.start_worker()
         
-        task_id = oq.enqueue(
-            func=example_task,
-            func_args={"name": "Dictionary Config", "multiplier": 1},
-            queue_name="medium"
+        from omniq.models.task import Task
+        task = Task(
+            func_name=example_task.__name__,
+            args=(),
+            kwargs={"name": "Dictionary Config", "multiplier": 1}
         )
+        task_id = oq.enqueue(task=task)
         
         print(f"✓ Enqueued task: {task_id}")
         
@@ -147,43 +125,34 @@ def yaml_config_example():
         
         # Create a temporary config file
         temp_config = """
-project_name: yaml_example
-
-task_queue:
-  type: file
-  config:
-    base_dir: ./temp/yaml_config
-    queues:
-      - high
-      - medium
-      - low
-
-result_store:
-  type: sqlite
-  config:
-    base_dir: ./temp/yaml_config
-
-worker:
-  type: thread_pool
-  config:
-    max_workers: 8
+# This is a placeholder for future YAML configuration support
+# Currently, we create components directly
 """
         with open(config_path, 'w') as f:
             f.write(temp_config)
     
-    # Load OmniQ configuration from YAML file
-    oq = OmniQ.from_config_file(str(config_path))
+    # Create components directly
+    queue = FileQueue(base_dir="./temp/yaml_config")
+    result_store = SQLiteResultStorage(base_dir="./temp/yaml_config")
+    
+    # Create OmniQ with components
+    oq = OmniQ(
+        task_queue=queue,
+        result_store=result_store
+    )
     print("✓ Created OmniQ from YAML config file")
     
     # Start worker and enqueue a task
     with oq:
         oq.start_worker()
         
-        task_id = oq.enqueue(
-            func=example_task,
-            func_args={"name": "YAML Config", "multiplier": 3},
-            queue_name="low"
+        from omniq.models.task import Task
+        task = Task(
+            func_name=example_task.__name__,
+            args=(),
+            kwargs={"name": "YAML Config", "multiplier": 3}
         )
+        task_id = oq.enqueue(task=task)
         
         print(f"✓ Enqueued task: {task_id}")
         
@@ -214,26 +183,15 @@ def environment_variables_example():
         if key.startswith("OMNIQ_"):
             print(f"  {key}={value}")
     
-    # Create OmniQ with environment variable configuration
-    # Note: This would use the environment variables for configuration
-    config = {
-        "project_name": "env_example",
-        "task_queue": {
-            "type": "file",
-            "config": {
-                "base_dir": "./temp/env_config",
-                "queues": ["high", "medium", "low"]
-            }
-        },
-        "result_store": {
-            "type": "sqlite",
-            "config": {
-                "base_dir": "./temp/env_config"
-            }
-        }
-    }
+    # Create components directly
+    queue = FileQueue(base_dir="./temp/env_config")
+    result_store = SQLiteResultStorage(base_dir="./temp/env_config")
     
-    oq = OmniQ.from_dict(config)
+    # Create OmniQ with components
+    oq = OmniQ(
+        task_queue=queue,
+        result_store=result_store
+    )
     print("✓ Created OmniQ with environment variable overrides")
     
     # Start worker and enqueue a task
@@ -268,22 +226,9 @@ def mixed_configuration_example():
     """Example 5: Mixing different configuration methods."""
     print("\n=== Example 5: Mixed Configuration Methods ===")
     
-    # Use config objects for some components
-    queue_config = FileTaskQueueConfig(
-        project_name="mixed_example",
-        base_dir="./temp/mixed_config",
-        queues=["priority", "normal"]
-    )
-    
-    queue = FileTaskQueue.from_config(queue_config)
-    
-    # Use dictionary for result storage
-    result_store_dict = {
-        "project_name": "mixed_example",
-        "base_dir": "./temp/mixed_config"
-    }
-    
-    result_store = SQLiteResultStorage.from_dict(result_store_dict)
+    # Create components directly
+    queue = FileQueue(base_dir="./temp/mixed_config")
+    result_store = SQLiteResultStorage(base_dir="./temp/mixed_config")
     
     # Create OmniQ with mixed configuration
     oq = OmniQ(

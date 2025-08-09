@@ -8,9 +8,9 @@ queues before lower-priority ones.
 
 import asyncio
 import time
-from omniq.queue import PostgresTaskQueue
+from omniq.queue import FileQueue
 from omniq.workers import ThreadPoolWorker
-from omniq.storage import SQLiteResultStorage
+from omniq.results import SQLiteResultStorage
 
 
 def simple_task(name, priority_level):
@@ -43,26 +43,20 @@ def main():
     """Main function demonstrating multiple queue usage."""
     print("=== OmniQ Multiple Queues Example ===\n")
     
-    # Create PostgreSQL queue with multiple named queues
+    # Create File queue with multiple named queues
     # Queues are processed in priority order: high -> medium -> low
-    queue = PostgresTaskQueue(
-        project_name="multiple_queues_example",
-        host="localhost",
-        port=5432,
-        username="postgres",
-        password="secret",
-        queues=["high", "medium", "low"]
+    queue = FileQueue(
+        base_dir="./multiple_queues_example"
     )
     
     # Create result storage
     result_store = SQLiteResultStorage(
-        project_name="multiple_queues_example",
-        base_dir="./results"
+        base_dir="./multiple_queues_example/results"
     )
     
     # Create worker that processes queues in priority order
     worker = ThreadPoolWorker(
-        queue=queue,
+        task_queue=queue,
         result_store=result_store,
         max_workers=10
     )
@@ -79,33 +73,39 @@ def main():
         # High priority tasks (processed first)
         print("Enqueuing HIGH priority tasks:")
         for i in range(3):
-            task_id = queue.enqueue(
-                func=simple_task,
-                func_args={"name": f"HighTask-{i+1}", "priority_level": "HIGH"},
-                queue_name="high"
+            from omniq.models.task import Task
+            task = Task(
+                func_name=simple_task.__name__,
+                args=(f"HighTask-{i+1}", "HIGH"),
+                kwargs={}
             )
+            task_id = queue.enqueue(task=task, queue_name="high")
             task_ids.append(("high", task_id))
             print(f"  - Enqueued HIGH priority task: HighTask-{i+1}")
         
         # Medium priority tasks (processed second)
         print("\nEnqueuing MEDIUM priority tasks:")
         for i in range(3):
-            task_id = queue.enqueue(
-                func=simple_task,
-                func_args={"name": f"MediumTask-{i+1}", "priority_level": "MEDIUM"},
-                queue_name="medium"
+            from omniq.models.task import Task
+            task = Task(
+                func_name=simple_task.__name__,
+                args=(f"MediumTask-{i+1}", "MEDIUM"),
+                kwargs={}
             )
+            task_id = queue.enqueue(task=task, queue_name="medium")
             task_ids.append(("medium", task_id))
             print(f"  - Enqueued MEDIUM priority task: MediumTask-{i+1}")
         
         # Low priority tasks (processed last)
         print("\nEnqueuing LOW priority tasks:")
         for i in range(3):
-            task_id = queue.enqueue(
-                func=simple_task,
-                func_args={"name": f"LowTask-{i+1}", "priority_level": "LOW"},
-                queue_name="low"
+            from omniq.models.task import Task
+            task = Task(
+                func_name=simple_task.__name__,
+                args=(f"LowTask-{i+1}", "LOW"),
+                kwargs={}
             )
+            task_id = queue.enqueue(task=task, queue_name="low")
             task_ids.append(("low", task_id))
             print(f"  - Enqueued LOW priority task: LowTask-{i+1}")
         
@@ -114,29 +114,35 @@ def main():
         # Enqueue different types of tasks to appropriate queues
         
         # Critical system tasks go to high priority queue
-        critical_task_id = queue.enqueue(
-            func=cpu_intensive_task,
-            func_args={"name": "CriticalSystemTask", "duration": 1},
-            queue_name="high"
+        from omniq.models.task import Task
+        critical_task = Task(
+            func_name=cpu_intensive_task.__name__,
+            args=("CriticalSystemTask", 1),
+            kwargs={}
         )
+        critical_task_id = queue.enqueue(task=critical_task, queue_name="high")
         task_ids.append(("high", critical_task_id))
         print("  - Enqueued critical system task to HIGH priority queue")
         
         # Background processing goes to medium priority queue
-        bg_task_id = queue.enqueue(
-            func=io_task,
-            func_args={"name": "BackgroundSync", "delay": 2},
-            queue_name="medium"
+        from omniq.models.task import Task
+        bg_task = Task(
+            func_name=io_task.__name__,
+            args=("BackgroundSync", 2),
+            kwargs={}
         )
+        bg_task_id = queue.enqueue(task=bg_task, queue_name="medium")
         task_ids.append(("medium", bg_task_id))
         print("  - Enqueued background sync task to MEDIUM priority queue")
         
         # Cleanup tasks go to low priority queue
-        cleanup_task_id = queue.enqueue(
-            func=simple_task,
-            func_args={"name": "CleanupTask", "priority_level": "LOW"},
-            queue_name="low"
+        from omniq.models.task import Task
+        cleanup_task = Task(
+            func_name=simple_task.__name__,
+            args=("CleanupTask", "LOW"),
+            kwargs={}
         )
+        cleanup_task_id = queue.enqueue(task=cleanup_task, queue_name="low")
         task_ids.append(("low", cleanup_task_id))
         print("  - Enqueued cleanup task to LOW priority queue")
         
@@ -148,7 +154,7 @@ def main():
         for queue_name, task_id in task_ids:
             try:
                 # Wait for result with timeout
-                result = result_store.get(task_id, timeout=30)
+                result = result_store.get_result(task_id)
                 completed_tasks.append((queue_name, task_id, result))
                 print(f"✓ {queue_name.upper()} queue task completed: {result}")
             except Exception as e:
@@ -181,52 +187,36 @@ def demonstrate_queue_management():
     print("\n=== Queue Management Demonstration ===\n")
     
     # Create a queue with initial queues
-    queue = PostgresTaskQueue(
-        project_name="queue_management_demo",
-        host="localhost",
-        port=5432,
-        username="postgres",
-        password="secret",
-        queues=["urgent", "normal"]
+    queue = FileQueue(
+        base_dir="./queue_management_demo"
     )
     
     try:
-        print("1. Initial queues:", queue.get_queue_names())
-        
-        # Add a new queue dynamically
-        queue.add_queue("batch")
-        print("2. After adding 'batch' queue:", queue.get_queue_names())
+        print("1. Initial queues:", queue.list_queues())
         
         # Enqueue tasks to different queues
-        urgent_id = queue.enqueue(
-            func=simple_task,
-            func_args={"name": "UrgentTask", "priority_level": "URGENT"},
-            queue_name="urgent"
+        from omniq.models.task import Task
+        urgent_task = Task(
+            func_name=simple_task.__name__,
+            args=("UrgentTask", "URGENT"),
+            kwargs={}
         )
+        urgent_id = queue.enqueue(task=urgent_task, queue_name="urgent")
         
-        normal_id = queue.enqueue(
-            func=simple_task,
-            func_args={"name": "NormalTask", "priority_level": "NORMAL"},
-            queue_name="normal"
+        normal_task = Task(
+            func_name=simple_task.__name__,
+            args=("NormalTask", "NORMAL"),
+            kwargs={}
         )
-        
-        batch_id = queue.enqueue(
-            func=simple_task,
-            func_args={"name": "BatchTask", "priority_level": "BATCH"},
-            queue_name="batch"
-        )
+        normal_id = queue.enqueue(task=normal_task, queue_name="normal")
         
         print("3. Tasks enqueued to all queues")
         
         # Check queue sizes
         print("4. Queue sizes:")
-        for queue_name in queue.get_queue_names():
+        for queue_name in queue.list_queues():
             size = queue.get_queue_size(queue_name)
             print(f"   - {queue_name}: {size} tasks")
-        
-        # Remove a queue (this would typically be done when queue is empty)
-        # queue.remove_queue("batch")  # Uncomment if queue is empty
-        # print("5. After removing 'batch' queue:", queue.get_queue_names())
         
     except Exception as e:
         print(f"Error in queue management demo: {e}")
@@ -236,27 +226,21 @@ async def async_multiple_queues_example():
     """Demonstrate multiple queues with async interface."""
     print("\n=== Async Multiple Queues Example ===\n")
     
-    from omniq.queue import AsyncPostgresTaskQueue
+    from omniq.queue import FileQueue
     from omniq.workers import AsyncWorker
-    from omniq.storage import AsyncSQLiteResultStorage
+    from omniq.results import SQLiteResultStorage
     
     # Create async components
-    queue = AsyncPostgresTaskQueue(
-        project_name="async_multiple_queues",
-        host="localhost",
-        port=5432,
-        username="postgres",
-        password="secret",
-        queues=["critical", "important", "routine"]
+    queue = FileQueue(
+        base_dir="./async_multiple_queues"
     )
     
-    result_store = AsyncSQLiteResultStorage(
-        project_name="async_multiple_queues",
-        base_dir="./async_results"
+    result_store = SQLiteResultStorage(
+        base_dir="./async_multiple_queues/results"
     )
     
     worker = AsyncWorker(
-        queue=queue,
+        task_queue=queue,
         result_store=result_store,
         max_workers=5
     )
@@ -278,31 +262,37 @@ async def async_multiple_queues_example():
         
         # Critical tasks
         for i in range(2):
-            task_id = await queue.enqueue(
-                func=async_task,
-                func_args={"name": f"CriticalAsync-{i+1}", "priority": "CRITICAL"},
-                queue_name="critical"
+            from omniq.models.task import Task
+            task = Task(
+                func_name=async_task.__name__,
+                args=(f"CriticalAsync-{i+1}", "CRITICAL"),
+                kwargs={}
             )
+            task_id = await queue.enqueue(task=task, queue_name="critical")
             task_ids.append(task_id)
             print(f"  - Enqueued CRITICAL async task: CriticalAsync-{i+1}")
         
         # Important tasks
         for i in range(2):
-            task_id = await queue.enqueue(
-                func=async_task,
-                func_args={"name": f"ImportantAsync-{i+1}", "priority": "IMPORTANT"},
-                queue_name="important"
+            from omniq.models.task import Task
+            task = Task(
+                func_name=async_task.__name__,
+                args=(f"ImportantAsync-{i+1}", "IMPORTANT"),
+                kwargs={}
             )
+            task_id = await queue.enqueue(task=task, queue_name="important")
             task_ids.append(task_id)
             print(f"  - Enqueued IMPORTANT async task: ImportantAsync-{i+1}")
         
         # Routine tasks
         for i in range(2):
-            task_id = await queue.enqueue(
-                func=async_task,
-                func_args={"name": f"RoutineAsync-{i+1}", "priority": "ROUTINE"},
-                queue_name="routine"
+            from omniq.models.task import Task
+            task = Task(
+                func_name=async_task.__name__,
+                args=(f"RoutineAsync-{i+1}", "ROUTINE"),
+                kwargs={}
             )
+            task_id = await queue.enqueue(task=task, queue_name="routine")
             task_ids.append(task_id)
             print(f"  - Enqueued ROUTINE async task: RoutineAsync-{i+1}")
         
@@ -311,7 +301,7 @@ async def async_multiple_queues_example():
         # Wait for all tasks to complete
         for task_id in task_ids:
             try:
-                result = await result_store.get(task_id, timeout=30)
+                result = result_store.get_result(task_id)
                 print(f"✓ Async task completed: {result}")
             except Exception as e:
                 print(f"✗ Async task {task_id} failed: {e}")

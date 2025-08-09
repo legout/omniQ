@@ -1,0 +1,152 @@
+---
+title: "Examples"
+---
+
+This section provides real-world examples of how to use `omniq`. The examples are adapted from the `examples/` directory in the project repository.
+
+## Component-Based Usage
+
+This example demonstrates the component-based approach to using the `omniq` library, where each component (Queue, Result Store, Worker) is instantiated and used separately. This approach offers maximum flexibility.
+
+### 1. Basic Component Setup
+
+First, we create each component individually. Here, we'll use a `FileTaskQueue` and a `SQLiteResultStorage`.
+
+```python
+#| echo: true
+#| eval: false
+import datetime as dt
+from omniq.queue import FileTaskQueue
+from omniq.results import SQLiteResultStorage
+from omniq.workers import ThreadPoolWorker
+
+# Create components individually
+queue = FileTaskQueue(
+    project_name="my_project",
+    base_dir="some/path",
+    queues=["low", "medium", "high"]
+)
+
+result_store = SQLiteResultStorage(
+    project_name="my_project",
+    base_dir="some/path"
+)
+
+print(f"Task Queue: {type(queue).__name__}")
+print(f"Result Store: {type(result_store).__name__}")
+```
+
+### 2. Creating and Running a Worker
+
+Now, we create a worker that references our queue and result store.
+
+```python
+#| echo: true
+#| eval: false
+# Define a simple task
+def simple_task(name):
+    print(f"Hello {name}")
+    return name
+
+# Use context managers for automatic resource cleanup
+with queue, result_store, ThreadPoolWorker(
+    queue=queue, result_store=result_store, max_workers=2
+) as worker:
+    print("All components initialized with context managers")
+    task_id = queue.enqueue(simple_task, func_args=dict(name="World"))
+    print(f"Enqueued task with ID: {task_id}")
+
+    result = result_store.get(task_id)
+    print(f"Task result: {result}")
+
+print("Context managers automatically cleaned up resources")
+```
+
+## Backend-Based Usage
+
+The backend abstraction layer in `omniq` simplifies configuration. Backends act as unified factories for creating storage components.
+
+### 1. Single Backend Usage
+
+The simplest approach uses one backend for all components.
+
+```python
+#| echo: true
+#| eval: false
+from omniq import OmniQ
+from omniq.backend import SQLiteBackend
+
+# Create a SQLite backend
+sqlite_backend = SQLiteBackend({
+    "db_path": "notebook_single_backend.db",
+    "create_dirs": True
+})
+
+# Create OmniQ instance from the backend
+oq = OmniQ.from_backend(
+    backend=sqlite_backend,
+    worker_type="thread_pool",
+    worker_config={"max_workers": 4}
+)
+
+print(f"Task queue type: {type(oq.task_queue).__name__}")
+print(f"Result storage type: {type(oq.result_storage).__name__}")
+
+# Define a task
+def another_task(name: str):
+    return f"Hello again, {name}!"
+
+# Use the OmniQ instance
+with oq:
+    oq.start_worker()
+    task_id = oq.enqueue(func=another_task, func_kwargs={"name": "developer"})
+    print(f"Enqueued task: {task_id}")
+    result = oq.get_result(task_id)
+    print(f"Task result: {result.result if result else 'None'}")
+    oq.stop_worker()
+```
+
+### 2. Mixed Backend Usage
+
+You can use different backends for different components to optimize for specific requirements.
+
+```python
+#| echo: true
+#| eval: false
+from omniq.backend import FileBackend
+
+# Fast file-based backend for task queue
+file_backend = FileBackend({
+    "base_dir": "notebook_queue_storage",
+    "create_dirs": True
+})
+
+# Persistent SQLite backend for result storage
+result_backend = SQLiteBackend({
+    "db_path": "notebook_results.db",
+    "create_dirs": True
+})
+
+# Create OmniQ with mixed backends
+mixed_oq = OmniQ.from_backend(
+    backend=file_backend,              # Task queue uses file storage
+    result_store_backend=result_backend,  # Results use SQLite
+    worker_type="thread_pool",
+    worker_config={"max_workers": 2}
+)
+
+print(f"Task queue backend: {type(mixed_oq.task_queue).__name__}")
+print(f"Result storage backend: {type(mixed_oq.result_storage).__name__}")
+
+with mixed_oq:
+    mixed_oq.start_worker()
+    task_id = mixed_oq.enqueue(func=another_task, func_kwargs={"name": "tester"})
+    result = mixed_oq.get_result(task_id)
+    print(f"Task result: {result.result if result else 'None'}")
+    mixed_oq.stop_worker()
+
+```
+
+***
+
+*Note: Visuals, such as diagrams illustrating the component and backend architectures, could be added here to further enhance the documentation.*

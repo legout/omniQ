@@ -1,0 +1,21 @@
+site_name: OmniQ
+theme:
+  name: material
+nav:
+  - Home: index.md
+  - Installation: installation.md
+  - Quickstart: quickstart.md
+  - "API Reference":
+      - Backends: api/backends.md
+      - Configuration: api/configuration.md
+      - Events: api/events.md
+      - Storage: api/storage.md
+      - Task Queues: api/task_queues.md
+      - Workers: api/workers.md
+  - Examples: examples.md
+  - "Advanced Usage": advanced.md
+  - Contributing: contributing.md
+extra_css:
+  - assets/styles.css
+plugins:
+  - search

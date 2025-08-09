@@ -21,8 +21,11 @@ from .models.event import TaskEvent, TaskEventType
 from .models.config import OmniQConfig
 from .results.base import BaseResultStorage
 from .queue.base import BaseQueue
+from .queue.scheduler import AsyncScheduler
+from .queue.dependency import DependencyResolver
 from .events.base import BaseEventStorage
 from .config import env, loader
+from .cleanup import CleanupManager
 
 
 class AsyncOmniQ:
@@ -63,6 +66,41 @@ class AsyncOmniQ:
         self.result_storage = result_storage
         self.event_storage = event_storage
         self.worker = worker
+        
+        # Initialize scheduler if task queue is available
+        self.scheduler: Optional[AsyncScheduler] = None
+        if self.task_queue is not None:
+            self.scheduler = AsyncScheduler(self.task_queue)
+        
+        # Initialize dependency resolver if result storage is available
+        self.dependency_resolver: Optional[DependencyResolver] = None
+        if self.result_storage is not None:
+            self.dependency_resolver = DependencyResolver(
+                result_storage=self.result_storage,
+                event_storage=self.event_storage
+            )
+        
+        # Initialize cleanup manager
+        self.cleanup_manager: Optional[CleanupManager] = None
+        if self.task_queue is not None or self.result_storage is not None or self.event_storage is not None:
+            if self.config.cleanup is not None:
+                cleanup_config = self.config.cleanup
+                self.cleanup_manager = CleanupManager(
+                    queue=self.task_queue,
+                    result_storage=self.result_storage,
+                    event_storage=self.event_storage,
+                    cleanup_interval=cleanup_config.interval,
+                    task_cleanup_enabled=cleanup_config.task_cleanup_enabled,
+                    result_cleanup_enabled=cleanup_config.result_cleanup_enabled,
+                    event_cleanup_enabled=cleanup_config.event_cleanup_enabled
+                )
+            else:
+                # Use default cleanup configuration
+                self.cleanup_manager = CleanupManager(
+                    queue=self.task_queue,
+                    result_storage=self.result_storage,
+                    event_storage=self.event_storage
+                )
         
         # Worker management
         self._worker_task: Optional[asyncio.Task] = None
@@ -178,8 +216,17 @@ class AsyncOmniQ:
             ttl=ttl
         )
         
-        # Enqueue the task
-        await self.task_queue.enqueue_async(task, queue_name)
+        # Handle task dependencies if dependency resolver is available
+        if self.dependency_resolver is not None and task.dependencies:
+            enqueued_immediately = await self.dependency_resolver.add_task_with_dependencies(
+                task, self.task_queue, queue_name
+            )
+            if not enqueued_immediately:
+                # Task is waiting for dependencies
+                return task_id
+        else:
+            # Enqueue the task directly
+            await self.task_queue.enqueue_async(task, queue_name)
         
         # Log enqueue event if event storage is available
         if self.event_storage is not None:
@@ -239,7 +286,8 @@ class AsyncOmniQ:
         queue_name: str = "default",
         interval: Optional[timedelta] = None,
         cron: Optional[str] = None,
-        start_at: Optional[datetime] = None
+        start_at: Optional[datetime] = None,
+        end_at: Optional[datetime] = None
     ) -> uuid.UUID:
         """Schedule a recurring task.
         
@@ -251,22 +299,26 @@ class AsyncOmniQ:
             interval: Interval between executions
             cron: Cron expression for scheduling
             start_at: When to start the schedule
+            end_at: When to end the schedule (optional)
             
         Returns:
             Schedule ID
             
-        Note:
-            This is a simplified implementation. A full implementation would
-            require a scheduler component to manage recurring tasks.
+        Raises:
+            ValueError: If scheduler is not configured
         """
-        # For now, just enqueue a single task
-        # A full implementation would create a schedule entry
-        return await self.enqueue(
+        if self.scheduler is None:
+            raise ValueError("Scheduler not configured - task queue must be provided")
+        
+        return await self.scheduler.add_schedule(
             func=func,
             func_args=func_args,
             func_kwargs=func_kwargs,
             queue_name=queue_name,
-            run_at=start_at
+            interval=interval,
+            cron=cron,
+            start_at=start_at,
+            end_at=end_at
         )
     
     async def start_worker(self) -> None:
@@ -283,7 +335,14 @@ class AsyncOmniQ:
             raise RuntimeError("Worker is already running")
         
         self._worker_running = True
-        self._worker_task = asyncio.create_task(self.worker.start())
+        # Check if worker.start is a coroutine function
+        if asyncio.iscoroutinefunction(self.worker.start):
+            self._worker_task = asyncio.create_task(self.worker.start())
+        else:
+            # For synchronous workers, run start in a separate thread to avoid blocking
+            self._worker_task = asyncio.create_task(
+                asyncio.to_thread(self.worker.start)
+            )
     
     async def stop_worker(self) -> None:
         """Stop the worker gracefully."""
@@ -332,6 +391,53 @@ class AsyncOmniQ:
         
         return await self.task_queue.list_queues_async()
     
+    async def start_scheduler(self) -> None:
+        """Start the scheduler to process recurring tasks.
+        
+        Raises:
+            ValueError: If scheduler is not configured
+            RuntimeError: If scheduler is already running
+        """
+        if self.scheduler is None:
+            raise ValueError("Scheduler not configured")
+        
+        await self.scheduler.start()
+    
+    async def stop_scheduler(self) -> None:
+        """Stop the scheduler gracefully."""
+        if self.scheduler is not None:
+            await self.scheduler.stop()
+    
+    async def start_cleanup(self) -> None:
+        """Start the cleanup manager to periodically clean up expired tasks and results.
+        
+        Raises:
+            ValueError: If cleanup manager is not configured
+        """
+        if self.cleanup_manager is None:
+            raise ValueError("Cleanup manager not configured")
+        
+        await self.cleanup_manager.start()
+    
+    async def stop_cleanup(self) -> None:
+        """Stop the cleanup manager gracefully."""
+        if self.cleanup_manager is not None:
+            await self.cleanup_manager.stop()
+    
+    async def run_cleanup_now(self) -> Dict[str, int]:
+        """Run cleanup immediately without waiting for the next scheduled cycle.
+        
+        Returns:
+            Dictionary with cleanup counts for each component
+            
+        Raises:
+            ValueError: If cleanup manager is not configured
+        """
+        if self.cleanup_manager is None:
+            raise ValueError("Cleanup manager not configured")
+        
+        return await self.cleanup_manager.run_cleanup_now()
+    
     async def __aenter__(self) -> "AsyncOmniQ":
         """Async context manager entry."""
         # Initialize components if needed
@@ -341,6 +447,12 @@ class AsyncOmniQ:
         """Async context manager exit."""
         # Stop worker if running
         await self.stop_worker()
+        
+        # Stop scheduler if running
+        await self.stop_scheduler()
+        
+        # Stop cleanup manager if running
+        await self.stop_cleanup()
         
         # Clean up resources
         # Components should handle their own cleanup
@@ -486,7 +598,8 @@ class OmniQ:
         queue_name: str = "default",
         interval: Optional[timedelta] = None,
         cron: Optional[str] = None,
-        start_at: Optional[datetime] = None
+        start_at: Optional[datetime] = None,
+        end_at: Optional[datetime] = None
     ) -> uuid.UUID:
         """Schedule a recurring task (synchronous).
         
@@ -498,15 +611,40 @@ class OmniQ:
             interval: Interval between executions
             cron: Cron expression for scheduling
             start_at: When to start the schedule
+            end_at: When to end the schedule (optional)
             
         Returns:
             Schedule ID
         """
         return asyncio.run(
             self._async_omniq.schedule(
-                func, func_args, func_kwargs, queue_name, interval, cron, start_at
+                func, func_args, func_kwargs, queue_name, interval, cron, start_at, end_at
             )
         )
+    
+    def start_scheduler(self) -> None:
+        """Start the scheduler to process recurring tasks (synchronous)."""
+        asyncio.run(self._async_omniq.start_scheduler())
+    
+    def stop_scheduler(self) -> None:
+        """Stop the scheduler gracefully (synchronous)."""
+        asyncio.run(self._async_omniq.stop_scheduler())
+    
+    def start_cleanup(self) -> None:
+        """Start the cleanup manager to periodically clean up expired tasks and results (synchronous)."""
+        asyncio.run(self._async_omniq.start_cleanup())
+    
+    def stop_cleanup(self) -> None:
+        """Stop the cleanup manager gracefully (synchronous)."""
+        asyncio.run(self._async_omniq.stop_cleanup())
+    
+    def run_cleanup_now(self) -> Dict[str, int]:
+        """Run cleanup immediately without waiting for the next scheduled cycle (synchronous).
+        
+        Returns:
+            Dictionary with cleanup counts for each component
+        """
+        return asyncio.run(self._async_omniq.run_cleanup_now())
     
     def start_worker(self) -> None:
         """Start the worker to process tasks (synchronous)."""

@@ -1,0 +1,910 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      
+        <link rel="prev" href="../examples/">
+      
+      
+        <link rel="next" href="../contributing/">
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.16">
+    
+    
+      
+        <title>Advanced Usage - OmniQ</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.7e37652d.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/styles.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#advanced-usage" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="OmniQ" class="md-header__button md-logo" aria-label="OmniQ" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            OmniQ
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Advanced Usage
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="OmniQ" class="md-nav__button md-logo" aria-label="OmniQ" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    OmniQ
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Home
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Installation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Quickstart
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    API Reference
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            API Reference
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/backends/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Backends
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/configuration.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Configuration
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/events/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Events
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/storage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Storage
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/task_queues/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Task Queues
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/workers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Workers
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../examples/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Examples
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    Advanced Usage
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    Advanced Usage
+    
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#configuration-based-setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      Configuration-Based Setup
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Configuration-Based Setup">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#using-a-yaml-configuration-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      Using a YAML Configuration File
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#using-environment-variables" class="md-nav__link">
+    <span class="md-ellipsis">
+      Using Environment Variables
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#handling-sync-and-async-tasks" class="md-nav__link">
+    <span class="md-ellipsis">
+      Handling Sync and Async Tasks
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cloud-storage-with-fsspec" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cloud Storage with fsspec
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Cloud Storage with fsspec">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#example-using-amazon-s3" class="md-nav__link">
+    <span class="md-ellipsis">
+      Example: Using Amazon S3
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#performance-tips" class="md-nav__link">
+    <span class="md-ellipsis">
+      Performance Tips
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../contributing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Contributing
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#configuration-based-setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      Configuration-Based Setup
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Configuration-Based Setup">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#using-a-yaml-configuration-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      Using a YAML Configuration File
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#using-environment-variables" class="md-nav__link">
+    <span class="md-ellipsis">
+      Using Environment Variables
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#handling-sync-and-async-tasks" class="md-nav__link">
+    <span class="md-ellipsis">
+      Handling Sync and Async Tasks
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cloud-storage-with-fsspec" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cloud Storage with fsspec
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Cloud Storage with fsspec">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#example-using-amazon-s3" class="md-nav__link">
+    <span class="md-ellipsis">
+      Example: Using Amazon S3
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#performance-tips" class="md-nav__link">
+    <span class="md-ellipsis">
+      Performance Tips
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="advanced-usage">Advanced Usage</h1>
+<p>OmniQ is designed with flexibility in mind, offering advanced configuration options and features to handle complex, real-world scenarios. This guide covers some of the more sophisticated capabilities, including advanced configuration, handling mixed synchronous and asynchronous tasks, and integrating with cloud storage solutions.</p>
+<h2 id="configuration-based-setup">Configuration-Based Setup</h2>
+<p>While you can instantiate OmniQ components directly, a configuration-driven approach offers greater flexibility, especially in production environments. This allows you to define your setup in YAML files, dictionaries, or even environment variables, decoupling your application logic from your infrastructure setup.</p>
+<h3 id="using-a-yaml-configuration-file">Using a YAML Configuration File</h3>
+<p>For maximum clarity and maintainability, we recommend using a YAML file to define your OmniQ setup. This approach allows you to specify the project name, task queue, result store, and worker settings in a single, easy-to-read file.</p>
+<p>Here's an example of a <code>config.yaml</code> file:</p>
+<pre><code class="language-yaml">project_name: production_app
+
+task_queue:
+  type: file
+  config:
+    base_dir: ./omniq_data/tasks
+    queues:
+      - high_priority
+      - default
+      - low_priority
+
+result_store:
+  type: sqlite
+  config:
+    base_dir: ./omniq_data/results
+
+worker:
+  type: thread_pool
+  config:
+    max_workers: 10
+</code></pre>
+<p>You can then load this configuration and create an <code>OmniQ</code> instance with a single command:</p>
+<pre><code class="language-python">from omniq import OmniQ
+
+# Load the configuration from the YAML file
+oq = OmniQ.from_config_file(&quot;config.yaml&quot;)
+
+# Now your OmniQ instance is ready to use
+with oq:
+    # Enqueue tasks, manage workers, etc.
+    pass
+</code></pre>
+<h3 id="using-environment-variables">Using Environment Variables</h3>
+<p>For cloud-native applications and CI/CD pipelines, you can override configuration settings using environment variables. OmniQ recognizes variables prefixed with <code>OMNIQ_</code>.</p>
+<p>For example, to override the worker's <code>max_workers</code> setting, you can set the following environment variable:</p>
+<pre><code class="language-bash">export OMNIQ_WORKER_CONFIG_MAX_WORKERS=20
+</code></pre>
+<p>For more details on configuration loading and precedence, see the API reference under Configuration.</p>
+<h2 id="handling-sync-and-async-tasks">Handling Sync and Async Tasks</h2>
+<p>Modern applications often require a mix of synchronous (CPU-bound) and asynchronous (I/O-bound) tasks. OmniQ's workers are designed to handle both types of tasks seamlessly within the same queue, simplifying your architecture.</p>
+<p>Both <code>ThreadWorker</code> and <code>AsyncWorker</code> can execute sync and async functions without any special configuration. The worker automatically detects whether a task function is a coroutine and executes it accordingly.</p>
+<pre><code class="language-python">import asyncio
+import time
+from omniq import OmniQ
+from omniq.queue import FileTaskQueue
+
+# A standard synchronous function
+def sync_task(x, y):
+    print(f&quot;Executing sync task: {x} * {y}&quot;)
+    time.sleep(0.1)
+    return x * y
+
+# An asynchronous function
+async def async_task(x, y):
+    print(f&quot;Executing async task: {x} + {y}&quot;)
+    await asyncio.sleep(0.1)
+    return x + y
+
+# Setup OmniQ (can be done via config file as well)
+oq = OmniQ(project_name=&quot;mixed_tasks_example&quot;)
+
+with oq:
+    # Enqueue both types of tasks
+    sync_task_id = oq.enqueue(sync_task, func_args={'x': 5, 'y': 10})
+    async_task_id = oq.enqueue(async_task, func_args={'x': 5, 'y': 10})
+
+    # Wait for results
+    time.sleep(1)
+
+    # Retrieve results - the worker handles both correctly
+    sync_result = oq.get_result(sync_task_id)    # -&gt; 50
+    async_result = oq.get_result(async_task_id) # -&gt; 15
+
+    print(f&quot;Sync Result: {sync_result}&quot;)
+    print(f&quot;Async Result: {async_result}&quot;)
+</code></pre>
+<h2 id="cloud-storage-with-fsspec">Cloud Storage with <code>fsspec</code></h2>
+<p>OmniQ's <code>FileTaskQueue</code> and <code>FileResultStorage</code> components are built on top of the <code>fsspec</code> (Filesystem Spec) library. This powerful abstraction allows you to use virtually any storage backend that <code>fsspec</code> supports, including cloud storage providers like Amazon S3, Google Cloud Storage (GCS), and Azure Blob Storage.</p>
+<p>To use a cloud storage backend, simply provide the appropriate URI in the <code>base_dir</code> and include any necessary credentials in the <code>storage_options</code> dictionary.</p>
+<h3 id="example-using-amazon-s3">Example: Using Amazon S3</h3>
+<p>First, ensure you have the required library installed:</p>
+<pre><code class="language-bash">pip install s3fs
+</code></pre>
+<p>Then, configure the <code>FileTaskQueue</code> to use an S3 bucket:</p>
+<pre><code class="language-python">from omniq.queue import FileTaskQueue
+
+# Configuration for S3 storage
+s3_queue = FileTaskQueue(
+    project_name=&quot;s3_demo&quot;,
+    base_dir=&quot;s3://your-cool-bucket/omniq/tasks&quot;,
+    storage_options={
+        &quot;key&quot;: &quot;YOUR_AWS_ACCESS_KEY_ID&quot;,
+        &quot;secret&quot;: &quot;YOUR_AWS_SECRET_ACCESS_KEY&quot;,
+    }
+)
+
+# You can now use this queue with your OmniQ instance
+# oq = OmniQ(project_name=&quot;s3_demo&quot;, task_queue=s3_queue, ...)
+</code></pre>
+<p>The same principle applies to <code>FileResultStorage</code> and other cloud providers like GCS (<code>gs://...</code>) and Azure Blob Storage (<code>abfs://...</code>).</p>
+<h2 id="performance-tips">Performance Tips</h2>
+<ul>
+<li>Choose the Right Worker: Use <code>ThreadWorker</code> for I/O-bound synchronous tasks. For <code>async</code> tasks, <code>AsyncWorker</code> is generally more efficient as it can handle thousands of concurrent operations with a small number of threads.</li>
+<li>Serialization: The default serializer (<code>dill</code>) is very flexible but may not be the fastest. For performance-critical applications with well-defined data structures, consider using a faster serializer like <code>msgspec</code>.</li>
+<li>Batching: When enqueuing a large number of tasks, consider using <code>enqueue_many</code> to reduce the overhead of individual network requests or disk I/O operations.</li>
+<li>Persistent Connections: When using network-based backends (like Redis or a database), ensure your application manages connections efficiently. OmniQ's built-in components handle this, but be mindful if you create custom components.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      <script id="__config" type="application/json">{"base": "..", "features": [], "search": "../assets/javascripts/workers/search.d50fe291.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.50899def.min.js"></script>
+      
+    
+  </body>
+</html>

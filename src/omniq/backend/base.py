@@ -5,11 +5,12 @@ Backends act as factories for creating storage component instances.
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 from ..results.base import BaseResultStorage
 from ..queue.base import BaseQueue
 from ..events.base import BaseEventStorage
+from .circuit_breaker import CircuitBreaker
 
 
 class BaseBackend(ABC):
@@ -26,6 +27,14 @@ class BaseBackend(ABC):
             config: Backend-specific configuration dictionary
         """
         self.config = config
+        
+        # Initialize circuit breaker for backend operations
+        circuit_config = config.get("circuit_breaker", {})
+        self.circuit_breaker = CircuitBreaker(
+            failure_threshold=circuit_config.get("failure_threshold", 5),
+            recovery_timeout=circuit_config.get("recovery_timeout", 60),
+            expected_exception=circuit_config.get("expected_exception", Exception)
+        )
     
     @abstractmethod
     async def initialize_async(self) -> None:
@@ -43,6 +52,22 @@ class BaseBackend(ABC):
         This method should close connections, clean up temporary resources, etc.
         """
         pass
+    
+    async def initialize_with_circuit_breaker_async(self) -> None:
+        """Initialize the backend with circuit breaker protection.
+        
+        This method wraps the initialize_async method with circuit breaker
+        protection to prevent cascading failures.
+        """
+        return await self.circuit_breaker.call(self.initialize_async)
+    
+    async def close_with_circuit_breaker_async(self) -> None:
+        """Close the backend with circuit breaker protection.
+        
+        This method wraps the close_async method with circuit breaker
+        protection to prevent cascading failures.
+        """
+        return await self.circuit_breaker.call(self.close_async)
     
     @abstractmethod
     def create_queue(self) -> BaseQueue:
@@ -83,12 +108,12 @@ class BaseBackend(ABC):
     # Context manager support for async
     async def __aenter__(self):
         """Async context manager entry."""
-        await self.initialize_async()
+        await self.initialize_with_circuit_breaker_async()
         return self
     
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Async context manager exit."""
-        await self.close_async()
+        await self.close_with_circuit_breaker_async()
     
     # Context manager support for sync (to be implemented by concrete classes)
     def __enter__(self):

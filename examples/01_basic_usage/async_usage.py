@@ -5,19 +5,38 @@ This example demonstrates how to use the AsyncOmniQ interface for asynchronous t
 """
 
 import asyncio
+import asyncio
 import datetime as dt
+import os
+import uuid
+
 from omniq import AsyncOmniQ
-from omniq.queue import FileTaskQueue
-from omniq.storage import SQLiteResultStorage, PostgresEventStorage
+from omniq.queue import SQLiteQueue
+from omniq.results import SQLiteResultStorage
+from omniq.events import SQLiteEventStorage
+from omniq.workers import AsyncWorker
 
 
 async def main():
+    # Create unique database paths for this run
+    run_id = uuid.uuid4().hex[:8]
+    db_dir = f"./omniq_async_data_{run_id}"
+    os.makedirs(db_dir, exist_ok=True)
+    
+    queue_db_path = os.path.join(db_dir, "async_queue.db")
+    results_db_path = os.path.join(db_dir, "async_results.db")
+    events_db_path = os.path.join(db_dir, "async_events.db")
+
     # Create AsyncOmniQ instance with default components
     oq = AsyncOmniQ(
-        project_name="my_project",
-        task_queue=FileTaskQueue(base_dir="some/path", queues=["low", "medium", "high"]),
-        result_store=SQLiteResultStorage(base_dir="some/path"),
-        event_store=PostgresEventStorage(host="localhost", port=5432, username="postgres")
+        task_queue=SQLiteQueue(db_path=queue_db_path),
+        result_storage=SQLiteResultStorage(db_path=results_db_path),
+        event_storage=SQLiteEventStorage(db_path=events_db_path),
+        worker=AsyncWorker(
+            queue=SQLiteQueue(db_path=queue_db_path),
+            result_storage=SQLiteResultStorage(db_path=results_db_path),
+            event_storage=SQLiteEventStorage(db_path=events_db_path)
+        )
     )
 
     # Define an async task
@@ -34,8 +53,7 @@ async def main():
         func_args=dict(name="Tom"),
         queue_name="low",
         run_in=dt.timedelta(seconds=100),
-        ttl=dt.timedelta(hours=1),
-        result_ttl=dt.timedelta(minutes=5)
+        ttl=dt.timedelta(hours=1)
     )
 
     print(f"Enqueued task with ID: {task_id}")
@@ -71,11 +89,23 @@ async def context_manager_example():
         return name
 
     # Using async context manager
+    run_id = uuid.uuid4().hex[:8]
+    db_dir = f"./omniq_async_data_cm_{run_id}"
+    os.makedirs(db_dir, exist_ok=True)
+
+    queue_db_path = os.path.join(db_dir, "async_queue_cm.db")
+    results_db_path = os.path.join(db_dir, "async_results_cm.db")
+    events_db_path = os.path.join(db_dir, "async_events_cm.db")
+
     async with AsyncOmniQ(
-        project_name="my_project",
-        task_queue=FileTaskQueue(base_dir="some/path", queues=["low", "medium", "high"]),
-        result_store=SQLiteResultStorage(base_dir="some/path"),
-        event_store=PostgresEventStorage(host="localhost", port=5432, username="postgres")
+        task_queue=SQLiteQueue(db_path=queue_db_path),
+        result_storage=SQLiteResultStorage(db_path=results_db_path),
+        event_storage=SQLiteEventStorage(db_path=events_db_path),
+        worker=AsyncWorker(
+            queue=SQLiteQueue(db_path=queue_db_path),
+            result_storage=SQLiteResultStorage(db_path=results_db_path),
+            event_storage=SQLiteEventStorage(db_path=events_db_path)
+        )
     ) as oq:
         task_id = await oq.enqueue(async_task, func_args=dict(name="Tom"))
         result = await oq.get_result(task_id)
@@ -83,8 +113,15 @@ async def context_manager_example():
 
 
 if __name__ == "__main__":
-    print("Running basic async usage example...")
-    asyncio.run(main())
-    
-    print("\nRunning context manager example...")
-    asyncio.run(context_manager_example())
+    try:
+        print("Running basic async usage example...")
+        asyncio.run(main())
+        
+        print("\nRunning context manager example...")
+        asyncio.run(context_manager_example())
+    finally:
+        # Clean up generated directories
+        for entry in os.listdir("."):
+            if entry.startswith("omniq_async_data_"):
+                import shutil
+                shutil.rmtree(entry)

@@ -1,0 +1,106 @@
+---
+title: "Backends"
+---
+
+This section describes the different backends and their usage.
+
+The `Backend` classes provide a unified interface for storage systems. They allow you to create a task queue, result storage, and event storage from a single backend configuration.
+
+## Backend-Based Usage
+
+You can initialize `OmniQ` or its components directly from a backend instance. This provides a flexible way to configure your task queue system.
+
+### Unified Backend
+
+When you want to use the same storage system for the task queue, result store, and event store, you can pass a single backend instance to [`OmniQ.from_backend()`](src/omniq/core.py:1).
+
+```python
+from omniq import OmniQ
+from omniq.backend import SQLiteBackend
+
+# Create a backend
+sqlite_backend = SQLiteBackend(project_name="my_project", base_dir="some/path")
+
+# Create OmniQ with a single backend
+oq = OmniQ.from_backend(sqlite_backend, worker_type="thread_pool", worker_config={"max_workers": 10})
+```
+
+### Mixing Backends
+
+For more advanced configurations, you can mix and match different backends for different components.
+
+```python
+from omniq import OmniQ
+from omniq.backend import SQLiteBackend, FileBackend, PostgresBackend
+
+# Create backends
+file_backend = FileBackend(project_name="my_project", base_dir="some/path")
+sqlite_backend = SQLiteBackend(project_name="my_project", base_dir="some/path")
+pg_backend = PostgresBackend(
+    project_name="my_project",
+    host="localhost",
+    port=5432,
+    username="postgres",
+    password="secret"
+)
+
+# Or mix backends for different components
+oq = OmniQ.from_backend(
+    backend=file_backend,  # For task queue
+    result_store_backend=sqlite_backend,  # For result storage
+    event_store_backend=pg_backend,  # For event storage
+    worker_type="async",
+    worker_config={"max_workers": 20}
+)
+```
+
+### Individual Components
+
+You can also create individual components like [`TaskQueue`](src/omniq/queue/base.py:1), [`ResultStore`](src/omniq/results/base.py:1), and [`EventStore`](src/omniq/events/base.py:1) from backends.
+
+```python
+from omniq import TaskQueue, ResultStore, EventStore
+from omniq.backend import SQLiteBackend, FileBackend, PostgresBackend
+
+# Create backends
+file_backend = FileBackend(project_name="my_project", base_dir="some/path")
+sqlite_backend = SQLiteBackend(project_name="my_project", base_dir="some/path")
+pg_backend = PostgresBackend(
+    project_name="my_project",
+    host="localhost",
+    port=5432,
+    username="postgres",
+    password="secret"
+)
+
+
+task_queue = TaskQueue.from_backend(file_backend, queues=["high", "medium", "low"])
+result_store = ResultStore.from_backend(sqlite_backend)
+event_store = EventStore.from_backend(pg_backend)
+```
+
+## Available Backends
+
+### SQLiteBackend
+
+The [`SQLiteBackend`](src/omniq/backend/sqlite.py:1) uses a SQLite database for storage.
+
+::: {.callout-note}
+**Parameters**
+
+*   `project_name` (str): The name of the project.
+*   `base_dir` (str): The base directory to store the database file.
+:::
+
+### FileBackend
+
+The `FileBackend` uses the local filesystem for storage.
+
+::: {.callout-note}
+**Parameters**
+
+*   `project_name` (str): The name of the project.
+*   `base_dir` (str): The base directory to store the files.
+:::
+
+Placeholder for `PostgresBackend` documentation.

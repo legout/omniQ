@@ -9,6 +9,9 @@ class TaskEventType(Enum):
     STARTED = "started"
     COMPLETED = "completed"
     FAILED = "failed"
+    DEPENDENCY_WAIT = "dependency_wait"
+    DEPENDENCY_SATISFIED = "dependency_satisfied"
+    DEPENDENCY_FAILED = "dependency_failed"
 
 
 class TaskEvent(msgspec.Struct):
@@ -16,3 +19,4 @@ class TaskEvent(msgspec.Struct):
     event_type: TaskEventType
     timestamp: datetime
     worker_id: str | None = None
+    metadata: dict | None = None

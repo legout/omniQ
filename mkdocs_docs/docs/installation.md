@@ -1,0 +1,73 @@
+# Installation
+
+This guide provides instructions on how to install `omniq`.
+
+## Prerequisites
+
+Before you install `omniq`, please ensure you have the following prerequisites met:
+
+- **Python:** `omniq` requires Python 3.13 or higher. You can check your Python version by running:
+
+```bash
+python --version
+```
+
+## Installation with pip
+
+You can install `omniq` directly from the Python Package Index (PyPI) using `pip`:
+
+```bash
+pip install omniq
+```
+
+We recommend installing `omniq` in a virtual environment to avoid conflicts with other packages.
+
+### Using a Virtual Environment
+
+1. **Create a virtual environment:**
+```bash
+python -m venv .venv
+```
+
+2. **Activate the virtual environment:**
+* On macOS and Linux:
+```bash
+source .venv/bin/activate
+```
+* On Windows:
+```bash
+.venv\Scripts\activate
+```
+
+3. **Install `omniq`:**
+```bash
+pip install omniq
+```
+
+## Troubleshooting
+
+Here are some common issues you might encounter during installation and how to resolve them.
+
+### `pip` not found
+
+If you get an error like `command not found: pip`, it means `pip` is not in your system's PATH. You can try using `python -m pip` instead:
+
+```bash
+python -m pip install omniq
+```
+
+### Old version of `pip`
+
+An outdated version of `pip` might cause issues. You can upgrade `pip` using the following command:
+
+```bash
+python -m pip install --upgrade pip
+```
+
+### Permission Errors
+
+If you encounter permission errors during installation, you might be trying to install the package globally without sufficient privileges.
+Using a virtual environment, as described above, is the recommended way to avoid this. Alternatively, you can use the `--user` flag to install the package for your user only:
+
+```bash
+pip install --user omniq

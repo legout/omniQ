@@ -1,0 +1,70 @@
+---
+title: "Workers"
+---
+
+This section describes the different worker types and their usage.
+
+OmniQ provides several worker types to execute tasks. Each worker is designed for a specific concurrency model, but all workers can handle both synchronous and asynchronous tasks.
+
+## Worker Types
+
+| Worker Type | Class | Description |
+|---|---|---|
+| Async | [`omniq.workers.async.AsyncWorker`](src/omniq/workers/async.py:1) | Native `asyncio` execution. Ideal for I/O-bound tasks. |
+| Thread | [`omniq.workers.thread.ThreadWorker`](src/omniq/workers/thread.py:1) | Thread pool execution. Suitable for I/O-bound tasks that don't use `asyncio`. |
+| Process | `omniq.workers.process.ProcessWorker` | Process pool execution. Best for CPU-bound tasks. |
+| Gevent | `omniq.workers.gevent.GeventWorker` | Gevent pool execution. For projects using the `gevent` library. |
+
+## Key Features
+
+-   **Sync and Async Task Handling:** All worker types can execute both `sync` and `async` tasks.
+    -   Async workers run synchronous tasks in a thread pool to avoid blocking the event loop.
+    -   Thread and process workers run asynchronous tasks in a dedicated event loop.
+-   **Multi-Queue Processing:** Workers can process tasks from multiple queues with priority ordering. See @sec-task-queues for more information.
+
+## Usage
+
+You can specify the worker type and configuration when creating an [`OmniQ`](src/omniq/core.py:1) instance.
+
+### Async Worker Example
+
+```python
+from omniq import OmniQ
+
+# Use the async worker
+oq = OmniQ(worker_type="async", worker_config={"max_workers": 10})
+
+@oq.task
+async def my_async_task():
+    # ...
+    pass
+
+@oq.task
+def my_sync_task():
+    # This will run in a thread pool
+    pass
+```
+
+### Thread Worker Example
+
+```python
+from omniq import OmniQ
+
+# Use the thread worker
+oq = OmniQ(worker_type="thread", worker_config={"max_workers": 10})
+
+@oq.task
+def my_sync_task():
+    # ...
+    pass
+
+@oq.task
+async def my_async_task():
+    # This will run in an event loop
+    pass
+
+# To start the worker
+# oq.work()
+```
+
+Placeholder for more advanced worker configuration and lifecycle management.

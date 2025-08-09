@@ -1,0 +1,58 @@
+---
+title: "Task Queues"
+---
+
+This section covers the different task queue implementations available in OmniQ.
+
+OmniQ supports multiple backends for task queues. Each backend has a sync and an async version. For more information on configuring backends, see @sec-backends.
+
+## Available Task Queues
+
+| Queue Type | Synchronous Class | Asynchronous Class |
+|---|---|---|
+| File | [`omniq.queue.file.FileQueue`](src/omniq/queue/base.py:1) | `omniq.queue.file.AsyncFileQueue` |
+| Memory | [`omniq.queue.memory.MemoryQueue`](src/omniq/queue/base.py:1) | `omniq.queue.memory.AsyncMemoryQueue` |
+| SQLite | [`omniq.queue.sqlite.SQLiteQueue`](src/omniq/queue/sqlite.py:1) | `omniq.queue.sqlite.AsyncSQLiteQueue` |
+| PostgreSQL | `omniq.queue.postgres.PostgresQueue` | `omniq.queue.postgres.AsyncPostgresQueue` |
+| Redis | `omniq.queue.redis.RedisQueue` | `omniq.queue.redis.AsyncRedisQueue` |
+| NATS | `omniq.queue.nats.NATSQueue` | `omniq.queue.nats.AsyncNATSQueue` |
+
+### In-Memory Queue
+
+The in-memory queue is useful for testing and scenarios where persistence is not required.
+
+::: {.callout-warning}
+The in-memory queue is not persistent. If the application restarts, all tasks in the queue will be lost.
+:::
+
+## Multiple Named Queues
+
+All task queue implementations support multiple named queues, allowing you to prioritize and segregate tasks.
+
+-   **File Queue:** Uses a directory structure for each queue.
+-   **SQLite/PostgreSQL Queue:** Uses a `queue` column with priority ordering.
+-   **Redis Queue:** Uses queue prefixes.
+-   **NATS Queue:** Uses subject prefixes.
+
+### Usage
+
+You can specify the queues when creating a [`TaskQueue`](src/omniq/queue/base.py:1) instance.
+
+```python
+from omniq import TaskQueue
+from omniq.queue import SQLiteQueue
+
+# Create a task queue with multiple named queues
+task_queue = TaskQueue(
+    queue=SQLiteQueue(project_name="my_project"),
+    queues=["high", "medium", "low"]
+)
+
+# Enqueue a task to a specific queue
+@oq.task(queue="high")
+def my_high_priority_task():
+    # ...
+    pass
+```
+
+Placeholder for more advanced queueing strategies.

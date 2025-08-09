@@ -1,0 +1,49 @@
+---
+title: "Events"
+---
+
+This section covers the event system and how to use it for monitoring.
+
+The event system in OmniQ allows for tracking the lifecycle of tasks. Events are logged to a configured event store, which can be a SQLite database, a PostgreSQL database, or JSON files.
+
+## Event Types
+
+The following event types are tracked:
+
+::: {.callout-note}
+*   `ENQUEUED`: A task has been added to the queue.
+*   `EXECUTING`: A worker has started executing a task.
+*   `COMPLETE`: A task has completed successfully.
+*   `ERROR`: A task has failed with an error.
+*   `RETRY`: A task is being retried.
+*   `CANCELLED`: A task has been cancelled.
+*   `EXPIRED`: A task has expired (reached its TTL).
+*   `SCHEDULE_PAUSED`: A schedule has been paused.
+*   `SCHEDULE_RESUMED`: A schedule has been resumed.
+:::
+
+## Key Design Decisions
+
+-   **Non-blocking Event Logging:** Event logging is non-blocking and can be disabled to minimize performance overhead.
+-   **Structured Logging:** Events are logged with structured metadata for easier querying and analysis.
+-   **Configurable Retention:** Event retention policies can be configured to manage storage usage.
+-   **Automatic Disabling:** Event logging is automatically disabled if no event storage is configured.
+-   **Flexible Storage:** Events can be stored in SQLite, PostgreSQL, or as JSON files. See @sec-backends for more information.
+-   **TTL and Schedule Tracking:** The event system tracks task TTL events and changes in schedule states.
+-   **Separation of Concerns:** A clear separation is maintained between library logging and task event logging.
+
+## Usage
+
+To enable event logging, configure an [`EventStore`](src/omniq/events/base.py:1) and pass it to your [`OmniQ`](src/omniq/core.py:1) instance.
+
+```python
+from omniq import OmniQ
+from omniq.events import SQLiteEventStore
+
+# Configure an event store
+event_store = SQLiteEventStore(project_name="my_project", base_dir="events")
+
+# Initialize OmniQ with the event store
+oq = OmniQ(event_store=event_store)
+
+# ... define and enqueue tasks ...

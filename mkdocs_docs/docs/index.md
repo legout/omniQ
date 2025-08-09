@@ -1,0 +1,21 @@
+# OmniQ: A Flexible Task Queue Library for Python
+
+[![PyPI](https://img.shields.io/pypi/v/omniq?style=for-the-badge)](YOUR_PYPI_URL)
+[![GitHub](https://img.shields.io/github/stars/YOUR_GITHUB_REPO?style=for-the-badge)](YOUR_GITHUB_REPO_URL)
+
+**OmniQ** is a modular Python task queue library designed for both local and distributed task processing. It provides a flexible architecture that supports multiple storage backends, worker types, and configuration methods. OmniQ enables developers to easily implement task queuing, scheduling, and distributed processing in their applications with both synchronous and asynchronous interfaces.
+
+## Key Features
+
+- **Multiple Storage Backends**: Supports File, Memory, SQLite, PostgreSQL, Redis, and NATS.
+- **Multiple Worker Types**: Includes Async, Thread Pool, Process Pool, and Gevent workers.
+- **Sync and Async Interfaces**: Provides both synchronous and asynchronous APIs.
+- **Advanced Task Scheduling**: Cron and interval patterns with pause/resume capabilities.
+- **Task Dependencies**: Manage complex workflows.
+- **Event Logging**: In-depth task lifecycle event logging.
+- **Flexible Configuration**: Configure via code, objects, YAML, or environment variables.
+- **Cloud Storage**: `fsspec` integration for cloud storage (S3, Azure, GCP).
+
+## Get Started
+
+To get started with OmniQ, check out the [Quickstart Guide](quickstart.md).

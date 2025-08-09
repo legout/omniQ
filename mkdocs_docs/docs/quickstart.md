@@ -1,0 +1,66 @@
+# Quickstart
+
+This guide provides a basic introduction to using `omniq` for task queuing. We'll walk through a simple synchronous example to get you started.
+
+## Basic Setup
+
+First, let's define a simple function that we want to run as a background task.
+
+```python
+import os
+from omniq import OmniQ
+from omniq.queue import FileTaskQueue
+from omniq.storage import SQLiteResultStorage, SQLiteEventStorage
+
+# Define a simple task function
+def simple_task(name: str):
+    """A simple task that prints a greeting and returns the name."""
+    print(f"Hello {name}")
+    return name
+
+# Create directories for storage if they don't exist
+os.makedirs("task_queue", exist_ok=True)
+os.makedirs("results", exist_ok=True)
+os.makedirs("events", exist_ok=True)
+```
+
+## Initializing OmniQ
+
+Next, we'll create an instance of `OmniQ`. For this example, we'll use file-based and SQLite storage, which are easy to set up.
+
+```python
+# Create an OmniQ instance
+oq = OmniQ(
+    project_name="quickstart_project",
+    task_queue=FileTaskQueue(base_dir="task_queue", queues=["default"]),
+    result_store=SQLiteResultStorage(base_dir="results"),
+    event_store=SQLiteEventStorage(base_dir="events")
+)
+```
+
+## Enqueuing and Retrieving a Task
+
+Now we can enqueue our `simple_task` and then retrieve its result. We'll use a context manager (`with oq.worker():`) to ensure the worker starts up, processes the task, and then shuts down cleanly.
+
+```python
+# Start a worker, enqueue a task, and get the result
+with oq.worker():
+    # Enqueue the task
+    task = oq.enqueue(simple_task, func_args=dict(name="World"))
+    print(f"Enqueued task with ID: {task.id}")
+
+    # Retrieve the result
+    result = oq.get_result(task.id)
+    print(f"Task result: {result.result}")
+
+assert result.result == "World"
+```
+
+This example covers the basic workflow:
+1. Define a task.
+2. Initialize `OmniQ` with a queue and storage backends.
+3. Start a worker.
+4. Enqueue the task.
+5. Retrieve the result.
+
+You can now explore more advanced features like scheduled tasks, asynchronous operations, and different storage backends.

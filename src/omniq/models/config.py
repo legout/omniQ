@@ -184,6 +184,14 @@ class GeventWorkerConfig(msgspec.Struct):
     retry_delay: float = 1.0
 
 
+class CleanupConfig(msgspec.Struct):
+    """Configuration for cleanup manager."""
+    interval: float = 3600.0  # 1 hour
+    task_cleanup_enabled: bool = True
+    result_cleanup_enabled: bool = True
+    event_cleanup_enabled: bool = True
+
+
 class OmniQConfig(msgspec.Struct):
     """Main OmniQ configuration."""
     project_name: str = "omniq"
@@ -203,6 +211,9 @@ class OmniQConfig(msgspec.Struct):
     # Worker configuration
     worker_type: str = "async"
     worker_config: Optional[Dict[str, Any]] = None
+    
+    # Cleanup configuration
+    cleanup: Optional[CleanupConfig] = None
     
     # Global settings
     task_ttl: int = 3600  # 1 hour

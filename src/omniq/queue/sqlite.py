@@ -46,6 +46,7 @@ class AsyncSQLiteQueue(BaseQueue):
             return
         
         async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("PRAGMA journal_mode=WAL;")
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS tasks (
                     id TEXT PRIMARY KEY,
@@ -192,6 +193,38 @@ class AsyncSQLiteQueue(BaseQueue):
             result = await cursor.fetchone()
             return result[0] if result else 0
     
+    async def cleanup_expired_tasks_async(self, queue_name: Optional[str] = None) -> int:
+        """Clean up expired tasks from the queue.
+        
+        Args:
+            queue_name: Specific queue to clean up, or None for all queues
+            
+        Returns:
+            Number of expired tasks removed
+        """
+        await self._ensure_initialized()
+        now = datetime.utcnow()
+        
+        async with aiosqlite.connect(self.db_path) as db:
+            if queue_name:
+                # Clean up specific queue
+                cursor = await db.execute("""
+                    DELETE FROM tasks
+                    WHERE queue_name = ?
+                    AND ttl_seconds IS NOT NULL
+                    AND datetime(created_at, '+' || ttl_seconds || ' seconds') < ?
+                """, (queue_name, now.isoformat()))
+            else:
+                # Clean up all queues
+                cursor = await db.execute("""
+                    DELETE FROM tasks
+                    WHERE ttl_seconds IS NOT NULL
+                    AND datetime(created_at, '+' || ttl_seconds || ' seconds') < ?
+                """, (now.isoformat(),))
+            
+            await db.commit()
+            return cursor.rowcount
+    
     async def list_queues_async(self) -> List[str]:
         """List all available queue names."""
         await self._ensure_initialized()
@@ -228,3 +261,7 @@ class SQLiteQueue(AsyncSQLiteQueue):
     def list_queues(self) -> List[str]:
         """Synchronous wrapper for list_queues_async."""
         return anyio.run(self.list_queues_async)
+    
+    def cleanup_expired_tasks(self, queue_name: Optional[str] = None) -> int:
+        """Synchronous wrapper for cleanup_expired_tasks_async."""
+        return anyio.run(self.cleanup_expired_tasks_async, queue_name)

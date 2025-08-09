@@ -1,79 +1,81 @@
 # Configuration
 
-This section will detail the various methods for configuring OmniQ.
+OmniQ provides flexible configuration options through various methods, including environment variables, YAML files, and direct code.
 
-OmniQ provides multiple configuration methods:
+## Configuration Hierarchy
 
-- Direct parameter initialization
-- Type-validated config objects using msgspec.Struct
-- Dictionary-based configuration
-- YAML file configuration
-- Environment variable overrides
+OmniQ loads configuration in a specific order, with later sources overriding earlier ones:
 
-## Settings and Environment Variables
+1.  **Default Settings**: Built-in default values.
+2.  **YAML Files**: Configuration loaded from specified YAML files.
+3.  **Environment Variables**: Variables prefixed with `OMNIQ_` override corresponding settings.
 
-- Define settings constants without "OMNIQ_" prefix
-- Override settings with environment variables with "OMNIQ_" prefix
-- Example: `BASE_DIR` in settings, `OMNIQ_BASE_DIR` as environment variable
+## Environment Variables
 
-```python
-# settings.py
-BASE_DIR = "default/path"
-PROJECT_NAME = "default"
+Environment variables are a convenient way to configure OmniQ, especially in deployment environments. All OmniQ-specific environment variables are prefixed with `OMNIQ_`.
 
-# env.py
-import os
-from .settings import BASE_DIR, PROJECT_NAME
+| Environment Variable      | Description                                     | Example Value           |
+|---------------------------|-------------------------------------------------|-------------------------|
+| `OMNIQ_LOG_LEVEL`         | Sets the logging level for OmniQ.               | `INFO`, `DEBUG`, `ERROR`|
+| `OMNIQ_TASK_QUEUE_TYPE`   | Specifies the backend for task queues.          | `file`, `memory`, `redis`|
+| `OMNIQ_RESULT_STORAGE_TYPE`| Specifies the backend for result storage.       | `file`, `memory`, `sqlite`|
+| `OMNIQ_EVENT_STORAGE_TYPE`| Specifies the backend for event storage.        | `file`, `sqlite`, `postgres`|
+| `OMNIQ_DEFAULT_WORKER`    | Sets the default worker type.                   | `async`, `thread`, `process`|
+| `OMNIQ_TASK_TTL`          | Default time-to-live for tasks in seconds.      | `3600` (1 hour)         |
+| `OMNIQ_RESULT_TTL`        | Default time-to-live for task results in seconds.| `86400` (24 hours)      |
 
-base_dir = os.environ.get("OMNIQ_BASE_DIR", BASE_DIR)
-project_name = os.environ.get("OMNIQ_PROJECT_NAME", PROJECT_NAME)
+## YAML Configuration
+
+You can define OmniQ settings in a YAML file. This allows for more structured and readable configurations.
+
+Example `config.yaml`:
+
+```yaml
+log_level: DEBUG
+task_queue:
+  type: redis
+  host: localhost
+  port: 6379
+result_storage:
+  type: sqlite
+  database: omniq_results.db
 ```
 
-Support the following variables:
-- `LOG_LEVEL` in settings, `OMNIQ_LOG_LEVEL` as env var: Set library logging level (DEBUG, INFO, WARNING, ERROR, DISABLED)
-- `DISABLE_LOGGING` in settings, `OMNIQ_DISABLE_LOGGING` as env var: Disable all library logging when set to "1" or "true"
-- `TASK_QUEUE_TYPE` in settings, `OMNIQ_TASK_QUEUE_TYPE` as env var: Queue backend for tasks (file, memory, sqlite, postgres, redis, nats)
-- `TASK_QUEUE_URL` in settings, `OMNIQ_TASK_QUEUE_URL` as env var: Connection string for task queue backend
-- `RESULT_STORAGE_TYPE` in settings, `OMNIQ_RESULT_STORAGE_TYPE` as env var: Storage backend for results (file, memory, sqlite, postgres, redis, nats)
-- `RESULT_STORAGE_URL` in settings, `OMNIQ_RESULT_STORAGE_URL` as env var: Connection string for result storage backend
-- `EVENT_STORAGE_TYPE` in settings, `OMNIQ_EVENT_STORAGE_TYPE` as env var: Storage backend for events (sqlite, postgres, file)
-- `EVENT_STORAGE_URL` in settings, `OMNIQ_EVENT_STORAGE_URL` as env var: Connection string for event storage backend
-- `FSSPEC_URI` in settings, `OMNIQ_FSSPEC_URI` as env var: URI for fsspec (e.g., "file:///path", "s3://bucket", "memory://")
-- `DEFAULT_WORKER` in settings, `OMNIQ_DEFAULT_WORKER` as env var: Default worker type (async, thread, process, gevent)
-- `MAX_WORKERS` in settings, `OMNIQ_MAX_WORKERS` as env var: Maximum number of workers
-- `THREAD_WORKERS` in settings, `OMNIQ_THREAD_WORKERS` as env var: Thread pool size
-- `PROCESS_WORKERS` in settings, `OMNIQ_PROCESS_WORKERS` as env var: Process pool size
-- `GEVENT_WORKERS` in settings, `OMNIQ_GEVENT_WORKERS` as env var: Gevent pool size
-- `TASK_TIMEOUT` in settings, `OMNIQ_TASK_TIMEOUT` as env var: Default task execution timeout in seconds
-- `TASK_TTL` in settings, `OMNIQ_TASK_TTL` as env var: Default time-to-live for tasks in seconds
-- `RETRY_ATTEMPTS` in settings, `OMNIQ_RETRY_ATTEMPTS` as env var: Default number of retry attempts
-- `RETRY_DELAY` in settings, `OMNIQ_RETRY_DELAY` as env var: Default delay between retries in seconds
-- `RESULT_TTL` in settings, `OMNIQ_RESULT_TTL` as env var: Default time-to-live for task results in seconds
-- `COMPONENT_LOG_LEVELS` in settings, `OMNIQ_COMPONENT_LOG_LEVELS` as env var: JSON string with per-component logging levels
+To load a YAML configuration, you would typically pass the path to your OmniQ instance or a configuration loader.
 
-## Component Configuration
+## Code Configuration
 
-- Use msgspec.Struct for type-validated configuration
-- Support multiple initialization methods:
-  - Direct parameters
-  - Config objects
-  - Dictionaries
-  - YAML files
+For programmatic control, you can configure OmniQ directly in your Python code.
 
 ```python
-@classmethod
-def from_config(cls, config):
-    """Create instance from config object"""
-    return cls(**config.dict())
+from omniq import OmniQ
+from omniq.config import OmniQConfig
 
-@classmethod
-def from_dict(cls, config_dict):
-    """Create instance from dictionary"""
-    return cls(**config_dict)
+config = OmniQConfig(
+    log_level="DEBUG",
+    task_queue_type="memory",
+    result_storage_type="memory"
+)
 
-@classmethod
-def from_config_file(cls, config_path):
-    """Create instance from config file"""
-    config_dict = load_yaml_config(config_path)
-    return cls.from_dict(config_dict)
+omniq = OmniQ(config=config)
+# Use omniq instance
 ```
+
+## Advanced Configuration
+
+OmniQ's modular design allows for fine-grained control over each component's configuration. For instance, you can configure different backends for task queues, result storage, and event storage independently.
+
+```python
+from omniq import OmniQ
+from omniq.config import OmniQConfig
+from omniq.backend import FileBackend, SQLiteBackend
+
+config = OmniQConfig(
+    task_queue_backend=FileBackend(base_dir="./tasks"),
+    result_storage_backend=SQLiteBackend(database_path="results.db")
+)
+
+omniq = OmniQ(config=config)
+```
+
+This flexibility ensures OmniQ can adapt to various architectural requirements and deployment scenarios.

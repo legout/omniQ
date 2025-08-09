@@ -1,0 +1,56 @@
+---
+title: "Storage"
+---
+
+This section explains the storage options for task results and events. For more information on configuring storage backends, see @sec-backends.
+
+## Result Storage
+
+OmniQ can store the results of tasks in various backends. Each storage option provides both synchronous and asynchronous implementations.
+
+| Storage Type | Synchronous Class | Asynchronous Class |
+|---|---|---|
+| File | [`omniq.results.file.FileResultStorage`](src/omniq/results/base.py:1) | `omniq.results.file.AsyncFileResultStorage` |
+| Memory | [`omniq.results.memory.MemoryResultStorage`](src/omniq/results/base.py:1) | `omniq.results.memory.AsyncMemoryResultStorage` |
+| SQLite | [`omniq.results.sqlite.SQLiteResultStorage`](src/omniq/results/sqlite.py:1) | `omniq.results.sqlite.AsyncSQLiteResultStorage` |
+| PostgreSQL | `omniq.results.postgres.PostgresResultStorage` | `omniq.results.postgres.AsyncPostgresResultStorage` |
+| Redis | `omniq.results.redis.RedisResultStorage` | `omniq.results.redis.AsyncRedisResultStorage` |
+| NATS | `omniq.results.nats.NATSResultStorage` | `omniq.results.nats.AsyncNATSResultStorage` |
+
+### Usage
+
+To configure result storage, you can either pass a storage instance to the [`OmniQ`](src/omniq/core.py:1) constructor or use a backend.
+
+```python
+from omniq import OmniQ
+from omniq.results import SQLiteResultStorage
+
+# Using a specific result storage instance
+result_store = SQLiteResultStorage(project_name="my_project")
+oq = OmniQ(result_store=result_store)
+```
+
+## Event Storage
+
+Task lifecycle events can be stored for monitoring and debugging. See @sec-events for more details on the event system.
+
+| Storage Type | Synchronous Class | Asynchronous Class |
+|---|---|---|
+| SQLite | [`omniq.events.sqlite.SQLiteEventStorage`](src/omniq/events/sqlite.py:1) | `omniq.events.sqlite.AsyncSQLiteEventStorage` |
+| PostgreSQL | `omniq.events.postgres.PostgresEventStorage` | `omniq.events.postgres.AsyncPostgresEventStorage` |
+| File | [`omniq.events.file.FileEventStorage`](src/omniq/events/base.py:1) | `omniq.events.file.AsyncFileEventStorage` |
+
+### Usage
+
+To configure event storage, you can either pass an event store instance to the [`OmniQ`](src/omniq/core.py:1) constructor or use a backend.
+
+```python
+from omniq import OmniQ
+from omniq.events import SQLiteEventStore
+
+# Using a specific event store instance
+event_store = SQLiteEventStore(project_name="my_project")
+oq = OmniQ(event_store=event_store)
+```
+
+Placeholder for more detailed storage-specific configurations.
