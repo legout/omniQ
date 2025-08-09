@@ -1,0 +1,37 @@
+project:
+  type: website
+  output-dir: ../_site
+
+website:
+  title: "OmniQ"
+  navbar:
+    left:
+      - href: index.qmd
+        text: Home
+      - href: getting_started.md
+        text: Getting Started
+      - href: configuration.md
+        text: Configuration
+      - href: task_queues.md
+        text: Task Queues
+      - href: workers.md
+        text: Workers
+      - href: storage.md
+        text: Storage
+      - href: events.md
+        text: Events
+      - href: backends.md
+        text: Backends
+      - href: examples.md
+        text: Examples
+
+format:
+  html:
+    theme:
+      - cosmo
+      - brand
+    css: styles.css
+    toc: true
+
+
+

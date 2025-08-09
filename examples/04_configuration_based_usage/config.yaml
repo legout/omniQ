@@ -1,0 +1,28 @@
+project_name: my_project
+
+task_queue:
+  type: file
+  config:
+    base_dir: some/path
+    queues:
+      - high
+      - medium
+      - low
+
+result_store:
+  type: sqlite
+  config:
+    base_dir: some/path
+
+event_store:
+  type: postgres
+  config:
+    host: localhost
+    port: 5432
+    username: postgres
+    password: secret
+
+worker:
+  type: thread_pool
+  config:
+    max_workers: 10

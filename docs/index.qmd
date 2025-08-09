@@ -1,4 +1,6 @@
-# OmniQ: A Flexible Task Queue Library for Python
+---
+title: "OmniQ: A Flexible Task Queue Library for Python"
+---
 
 OmniQ is a modular Python task queue library designed for both local and distributed task processing. It provides a flexible architecture that supports multiple storage backends, worker types, and configuration methods. OmniQ enables developers to easily implement task queuing, scheduling, and distributed processing in their applications with both synchronous and asynchronous interfaces.
 
@@ -15,7 +17,3 @@ OmniQ is a modular Python task queue library designed for both local and distrib
 - Multiple named queues with priority ordering
 - Cloud storage support through fsspec (S3, Azure, GCP)
 - TTL for tasks and results with automatic cleanup
-
-## Documentation
-
-For the full documentation, please visit the [OmniQ documentation website](https://omni-q.com).
