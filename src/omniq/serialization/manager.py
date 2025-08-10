@@ -1,7 +1,9 @@
 """Serialization manager implementing dual-serializer strategy for OmniQ."""
 
-from typing import Any, Literal
+from typing import Any, Literal, Optional, List
 import struct
+import logging
+import traceback
 
 from .base import BaseSerializer, SerializationError, DeserializationError
 from .msgspec import MsgspecSerializer
@@ -45,28 +47,39 @@ class SerializationManager:
         Raises:
             SerializationError: If both serializers fail
         """
+        msgspec_error = None
+        
         # Try msgspec first
         try:
             serialized_data = self._msgspec_serializer.serialize(obj)
             return MSGSPEC_IDENTIFIER + serialized_data
-        except SerializationError:
-            pass
+        except SerializationError as e:
+            logging.error(f"Msgspec serialization failed: {traceback.format_exc()}")
+            msgspec_error = e
         
         # Fall back to dill
         try:
             serialized_data = self._dill_serializer.serialize(obj)
             return DILL_IDENTIFIER + serialized_data
-        except SerializationError as e:
-            raise SerializationError(f"Both msgspec and dill serializers failed: {e}") from e
+        except SerializationError as dill_error:
+            logging.error(f"Dill serialization failed: {traceback.format_exc()}")
+            error_msg = "Both msgspec and dill serializers failed"
+            if msgspec_error is not None:
+                error_msg += f". Msgspec error: {msgspec_error}. Dill error: {dill_error}"
+            else:
+                error_msg += f". Dill error: {dill_error}"
+            raise SerializationError(error_msg) from dill_error
     
-    def deserialize(self, data: bytes) -> Any:
+    def deserialize(self, data: bytes, allowed_modules: Optional[List[str]] = None) -> Any:
         """Deserialize data using the appropriate serializer.
         
         Reads the serializer identifier from the data and uses the
-        corresponding serializer for deserialization.
+        corresponding serializer for deserialization. For dill serialization,
+        validates modules against the allowed_modules list if provided.
         
         Args:
             data: The serialized data with serializer identifier
+            allowed_modules: Optional list of allowed module names for dill deserialization
             
         Returns:
             Any: The deserialized Python object
@@ -83,7 +96,7 @@ class SerializationManager:
         if identifier == MSGSPEC_IDENTIFIER:
             return self._msgspec_serializer.deserialize(serialized_data)
         elif identifier == DILL_IDENTIFIER:
-            return self._dill_serializer.deserialize(serialized_data)
+            return self._dill_serializer.safe_deserialize(serialized_data, allowed_modules)
         else:
             raise DeserializationError(f"Unknown serializer identifier: {identifier}")
     

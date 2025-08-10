@@ -1,0 +1,153 @@
+# Docker Compose file for OmniQ project
+# Provides PostgreSQL, Redis, and NATS.io services for development and production
+# 
+# Usage:
+#   docker-compose up -d          # Start all services in background
+#   docker-compose down          # Stop and remove containers
+#   docker-compose logs -f       # Follow logs
+#   docker-compose restart       # Restart all services
+#   docker-compose exec postgres psql -U omniq -d omniq  # Access PostgreSQL
+
+version: '3.8'
+
+services:
+  # PostgreSQL database service
+  # Provides persistent storage for application data
+  postgres:
+    image: postgres:latest
+    container_name: omniq-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: omniq
+      POSTGRES_USER: omniq
+      POSTGRES_PASSWORD: omniq_password
+      # For production, use strong passwords and consider using secrets
+      # POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - omniq_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U omniq -d omniq"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    # Resource limits for production
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 1G
+          cpus: '0.5'
+    # Security configuration
+    security_opt:
+      - no-new-privileges:true
+    # Read-only root filesystem for security
+    read_only: true
+    tmpfs:
+      - /run/postgresql
+      - /tmp
+
+  # Redis caching and session storage service
+  # Provides fast in-memory data storage for caching and sessions
+  redis:
+    image: redis:latest
+    container_name: omniq-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass omniq_redis_password
+    # For production, use strong passwords and consider using secrets
+    # command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - omniq_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 30s
+    # Resource limits for production
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+        reservations:
+          memory: 512M
+          cpus: '0.2'
+    # Security configuration
+    security_opt:
+      - no-new-privileges:true
+    # Read-only root filesystem for security
+    read_only: true
+    tmpfs:
+      - /tmp
+
+  # NATS.io message queuing service
+  # Provides high-performance messaging for distributed systems
+  nats:
+    image: nats:latest
+    container_name: omniq-nats
+    restart: unless-stopped
+    command: --jetstream --http_port 8222  --store_dir /data/jetstream
+    ports:
+      - "4222:4222"    # Client connections
+      - "8222:8222"    # HTTP monitoring
+      - "9222:9222"    # Cluster monitoring
+    volumes:
+      - nats_data:/data
+      - nats_jetstream:/data/jetstream
+    networks:
+      - omniq_network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8222/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    # Resource limits for production
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+        reservations:
+          memory: 512M
+          cpus: '0.2'
+    # Security configuration
+    security_opt:
+      - no-new-privileges:true
+    # Read-only root filesystem for security
+    read_only: true
+    tmpfs:
+      - /tmp
+
+# Named volumes for data persistence
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  nats_data:
+    driver: local
+  nats_jetstream:
+    driver: local
+
+# Network configuration for service communication
+networks:
+  omniq_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+    # Enable internal network for production (no external access)
+    # internal: true

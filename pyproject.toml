@@ -13,18 +13,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-fsspec = [
-    "fsspec>=2025.7.0",
-]
-nats = [
-    "nats-py>=2.11.0",
-]
-redis = [
-    "redis>=6.4.0",
-]
-postgres = [
-    "asyncpg>=0.30.0",
-]
+fsspec = ["fsspec>=2025.7.0"]
+nats = ["nats-py>=2.11.0"]
+redis = ["redis>=6.4.0"]
+postgres = ["asyncpg>=0.30.0"]
 
 [build-system]
 requires = ["hatchling"]
@@ -35,7 +27,11 @@ packages = ["src/omniq"]
 
 [dependency-groups]
 dev = [
+    "marimo>=0.14.16",
     "mkdocs>=1.6.1",
     "mkdocs-material>=9.6.16",
     "ruff>=0.12.8",
+    "openai>=1.99.6",
+    "ipython>=9.4.0",
+    "ipykernel>=6.30.1",
 ]
