@@ -1,6 +1,6 @@
 ## ADDED Requirements
 
-### Requirement: Async and sync façades
+### Requirement: Async and sync interfaces
 The library MUST expose async-first and sync-friendly APIs for enqueuing tasks, retrieving results, and running workers.
 
 #### Scenario: Enqueue and await result using AsyncOmniQ
@@ -71,4 +71,3 @@ The library MUST emit basic logs for queue and worker behavior and allow users t
 - **WHEN** tasks are enqueued, started, retried, failed, or completed
 - **THEN** the library SHOULD emit log messages for these lifecycle events at appropriate levels
 - **AND** these logs MUST NOT include sensitive task argument data by default.
-

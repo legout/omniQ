@@ -73,14 +73,14 @@ As a developer, I can:
 ## 1. Architecture Overview
 
 - **Async-first core**: core types and operations are async.
-- **Sync wrapper**: thin sync façade around the async core for users not running an event loop.
+- **Sync wrapper**: thin sync interface around the async core for users not running an event loop.
 - **Storage abstraction**: a small, focused interface for queue/result storage with two v1 implementations (file, SQLite).
 - **Worker model**: one worker-pool type based on asyncio tasks, plus a sync wrapper.
 - **Config & serialization**: small config layer with env overrides; msgspec-based serialization by default, with an opt-in unsafe mode using `cloudpickle`.
 
 High-level objects:
 
-- `AsyncOmniQ` / `OmniQ` (facade).
+- `AsyncOmniQ` / `OmniQ` (interface).
 - `AsyncTaskQueue` (queue engine using storage).
 - `AsyncWorkerPool` (worker loop).
 - `Task`, `TaskResult`, `TaskStatus`, `Schedule` (models).

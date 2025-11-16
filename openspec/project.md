@@ -28,9 +28,9 @@ v1 focuses on a minimal but solid core: enqueueing tasks, executing them via an 
 - Formatting and linting will follow standard tools (e.g., black/ruff) once configured; until then, keep style consistent and simple.
 
 ### Architecture Patterns
-- Async-first core with thin sync façades.
+- Async-first core with thin sync interfaces.
 - Clear separation between:
-  - Public façade (`AsyncOmniQ` / `OmniQ`)
+- Public interface (`AsyncOmniQ` / `OmniQ`)
   - Queue/worker engine (`AsyncTaskQueue`, `AsyncWorkerPool`)
   - Storage backends (`BaseStorage` with file/SQLite implementations)
   - Serialization and configuration helpers
