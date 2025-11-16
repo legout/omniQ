@@ -7,7 +7,9 @@ authors = [
     { name = "legout", email = "ligno.blades@gmail.com" }
 ]
 requires-python = ">=3.13"
-dependencies = []
+dependencies = [
+    "loguru>=0.7.0"
+]
 
 [build-system]
 requires = ["hatchling"]

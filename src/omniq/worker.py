@@ -6,13 +6,13 @@ import asyncio
 import functools
 import importlib
 import inspect
-import logging
 import random
 import threading
 import time
 from datetime import datetime, timedelta, timezone
 from typing import Any, Callable, Optional, Set
 
+from loguru import logger
 from .models import Task, TaskResult, TaskStatus, Schedule
 from .storage.base import BaseStorage, TaskError
 from .storage.file import FileStorage
@@ -50,7 +50,6 @@ class AsyncWorkerPool:
         self._running = False
         self._in_flight: Set[asyncio.Task] = set()
         self._callable_cache: dict[str, Callable] = {}
-        self._log = logging.getLogger(__name__)
 
         # Thread pool for sync function execution
         self._executor = None
@@ -58,12 +57,12 @@ class AsyncWorkerPool:
     async def start(self) -> None:
         """Start the worker pool."""
         if self._running:
-            self._log.warning("Worker pool already running")
+            logger.warning("Worker pool already running")
             return
 
         self._running = True
         self._executor = asyncio.get_event_loop()
-        self._log.info(f"Starting AsyncWorkerPool with concurrency={self.concurrency}")
+        logger.info(f"Starting AsyncWorkerPool with concurrency={self.concurrency}")
 
         try:
             await self._run_loop()
@@ -77,7 +76,7 @@ class AsyncWorkerPool:
             if self._in_flight:
                 await asyncio.gather(*self._in_flight, return_exceptions=True)
 
-            self._log.info("AsyncWorkerPool stopped")
+            logger.info("AsyncWorkerPool stopped")
 
     async def stop(self, cancel_in_flight: bool = False) -> None:
         """Stop the worker pool.
@@ -96,14 +95,14 @@ class AsyncWorkerPool:
         else:
             # Wait for in-flight tasks to complete
             if self._in_flight:
-                self._log.info(
+                logger.info(
                     f"Waiting for {len(self._in_flight)} in-flight tasks to complete"
                 )
                 await asyncio.gather(*self._in_flight, return_exceptions=True)
 
     async def _run_loop(self) -> None:
         """Main worker loop."""
-        self._log.info("Worker loop started")
+        logger.info("Worker loop started")
 
         while self._running:
             try:
@@ -115,7 +114,7 @@ class AsyncWorkerPool:
                     await asyncio.sleep(self.poll_interval)
 
             except Exception as e:
-                self._log.error(f"Error in worker loop: {e}", exc_info=True)
+                logger.error(f"Error in worker loop: {e}", exc_info=True)
                 if self._running:
                     await asyncio.sleep(self.poll_interval)
 
@@ -146,7 +145,7 @@ class AsyncWorkerPool:
         func_name = task.func_path
 
         try:
-            self._log.info(f"Starting task {task_id}: {func_name}")
+            logger.info(f"Starting task {task_id}: {func_name}")
 
             # Mark task as running
             await self.storage.mark_running(task_id)
@@ -160,14 +159,14 @@ class AsyncWorkerPool:
             # Mark task as done
             await self.storage.mark_done(task_id, task_result)
 
-            self._log.info(f"Task {task_id} completed successfully")
+            logger.info(f"Task {task_id} completed successfully")
 
             # Handle interval tasks (reschedule for next run)
             if task.schedule.interval is not None:
                 await self._reschedule_interval_task(task)
 
         except Exception as e:
-            self._log.error(f"Task {task_id} failed: {e}", exc_info=True)
+            logger.error(f"Task {task_id} failed: {e}", exc_info=True)
             await self._handle_task_failure(task, e)
 
     async def _execute_callable(self, task: Task) -> Any:
@@ -236,7 +235,7 @@ class AsyncWorkerPool:
             retry_delay = self._calculate_retry_delay(current_attempt)
             new_eta = datetime.now(timezone.utc) + timedelta(seconds=retry_delay)
 
-            self._log.info(
+            logger.info(
                 f"Task {task_id} will retry (attempt {current_attempt}/{max_retries}) "
                 f"in {retry_delay:.1f} seconds"
             )
@@ -247,7 +246,7 @@ class AsyncWorkerPool:
 
         else:
             # Final failure
-            self._log.error(
+            logger.error(
                 f"Task {task_id} failed permanently after {current_attempt} attempts"
             )
 
@@ -288,12 +287,12 @@ class AsyncWorkerPool:
 
         # Create a new task ID for the next run (or reuse if backend supports it)
         # For now, we'll reuse the same task ID as a simplification
-        self._log.debug(f"Rescheduling interval task {task.id} for {next_eta}")
+        logger.debug(f"Rescheduling interval task {task.id} for {next_eta}")
 
         try:
             await self.storage.reschedule(task.id, next_eta)
         except Exception as e:
-            self._log.warning(f"Failed to reschedule interval task {task.id}: {e}")
+            logger.warning(f"Failed to reschedule interval task {task.id}: {e}")
 
 
 class WorkerPool:
@@ -323,7 +322,6 @@ class WorkerPool:
         )
         self._thread = None
         self._running = False
-        self._log = logging.getLogger(__name__)
 
     def start(self) -> None:
         """Start the worker pool (blocking).
@@ -331,7 +329,7 @@ class WorkerPool:
         This method blocks until the worker pool is stopped.
         """
         if self._running:
-            self._log.warning("Worker pool already running")
+            logger.warning("Worker pool already running")
             return
 
         self._running = True
@@ -342,14 +340,14 @@ class WorkerPool:
             try:
                 asyncio.run(self._run_async())
             except Exception as e:
-                self._log.error(f"Error in worker thread: {e}", exc_info=True)
+                logger.error(f"Error in worker thread: {e}", exc_info=True)
 
         self._thread = threading.Thread(target=run_worker, daemon=True)
         self._thread.start()
 
         # Wait briefly to ensure the worker starts
         time.sleep(0.1)
-        self._log.info("WorkerPool started")
+        logger.info("WorkerPool started")
 
     async def _run_async(self) -> None:
         """Run the async worker pool with stop event handling."""
@@ -369,7 +367,7 @@ class WorkerPool:
             return
 
         self._running = False
-        self._log.info("Stopping WorkerPool")
+        logger.info("Stopping WorkerPool")
 
         # Signal the async side to stop by setting a flag
         self._stop_event.set()
@@ -378,7 +376,7 @@ class WorkerPool:
         if self._thread and self._thread.is_alive():
             self._thread.join(timeout=timeout)
 
-        self._log.info("WorkerPool stopped")
+        logger.info("WorkerPool stopped")
 
 
 def create_worker_pool(

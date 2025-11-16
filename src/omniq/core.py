@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import asyncio
-import logging
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Optional
+
+from loguru import logger
 
 from .config import Settings, get_settings, BackendType
 from .models import Task, TaskResult
@@ -14,6 +15,9 @@ from .serialization import create_serializer
 from .storage.base import BaseStorage
 from .storage.file import FileStorage
 from .storage.sqlite import SQLiteStorage
+
+# Import worker pool classes from worker module
+from .worker import AsyncWorkerPool, WorkerPool
 
 
 class AsyncOmniQ:
@@ -41,10 +45,9 @@ class AsyncOmniQ:
             self.settings = settings
         self._storage = storage
         self._serializer = create_serializer(self.settings.serializer.value)
-        self._log = logging.getLogger(__name__)
 
-        # Initialize logging
-        self._configure_logging()
+        # Configure loguru log level
+        self._configure_log_level()
 
         # Cache for storage backend
         self._storage_instance: Optional[BaseStorage] = None
@@ -76,26 +79,15 @@ class AsyncOmniQ:
         else:
             raise ValueError(f"Unsupported backend: {self.settings.backend}")
 
-    def _configure_logging(self) -> None:
-        """Configure logging based on settings."""
-        import logging
-
-        # Set log level
-        log_level = getattr(logging, self.settings.log_level.upper(), logging.INFO)
-        logging.getLogger("omniq").setLevel(log_level)
-
-        # Create formatter
-        formatter = logging.Formatter(
-            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    def _configure_log_level(self) -> None:
+        """Configure loguru log level based on settings."""
+        # Remove default handler and add custom one with configured level
+        logger.remove()
+        logger.add(
+            sink=lambda msg: print(msg, end=""),
+            level=self.settings.log_level.upper(),
+            format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>",
         )
-
-        # Create console handler if none exists
-        handler = logging.StreamHandler()
-        handler.setFormatter(formatter)
-
-        logger = logging.getLogger("omniq")
-        if not logger.handlers:
-            logger.addHandler(handler)
 
         logger.info(
             f"AsyncOmniQ initialized with {self.settings.backend} backend, log level: {self.settings.log_level}"
@@ -147,12 +139,12 @@ class AsyncOmniQ:
             task_id=task_id,
         )
 
-        self._log.debug(f"Enqueueing task {task.id}: {task.func_path}")
+        logger.debug(f"Enqueueing task {task.id}: {task.func_path}")
 
         # Enqueue task
         await self.storage.enqueue(task)
 
-        self._log.info(f"Task {task.id} enqueued successfully")
+        logger.info(f"Task {task.id} enqueued successfully")
         return task.id
 
     async def get_result(
@@ -195,6 +187,8 @@ class AsyncOmniQ:
         Returns:
             An AsyncWorkerPool instance
         """
+        from .worker import AsyncWorkerPool
+
         return AsyncWorkerPool(
             storage=self.storage,
             concurrency=max_workers,
@@ -204,7 +198,7 @@ class AsyncOmniQ:
         """Close the AsyncOmniQ instance and cleanup resources."""
         if self._storage_instance:
             await self._storage_instance.close()
-        self._log.info("AsyncOmniQ closed")
+        logger.info("AsyncOmniQ closed")
 
 
 class OmniQ:
@@ -225,7 +219,6 @@ class OmniQ:
         """
         self._async_instance = AsyncOmniQ(settings, storage)
         self._runner = None
-        self._log = logging.getLogger(__name__)
 
     @property
     def _loop(self) -> asyncio.AbstractEventLoop:
@@ -322,81 +315,11 @@ class OmniQ:
             A WorkerPool instance
         """
         self._ensure_event_loop()
-        async_pool = asyncio.run(self._async_instance.worker(max_workers))
-        return WorkerPool(async_pool)
+        return WorkerPool(
+            storage=self._async_instance.storage,
+            concurrency=max_workers,
+        )
 
     def close(self) -> None:
         """Close the OmniQ instance and cleanup resources."""
         asyncio.run(self._async_instance.close())
-
-
-class AsyncWorkerPool:
-    """Async worker pool for processing tasks.
-
-    This is a placeholder implementation for the worker pool feature.
-    Full implementation would be in a separate worker.py module.
-    """
-
-    def __init__(
-        self,
-        storage: BaseStorage,
-        serializer,
-        max_workers: int = 1,
-        settings: Optional[Settings] = None,
-    ):
-        """Initialize AsyncWorkerPool.
-
-        Args:
-            storage: Storage backend to use
-            serializer: Serializer for tasks/results
-            max_workers: Maximum number of concurrent workers
-            settings: Configuration settings
-        """
-        self.storage = storage
-        self.serializer = serializer
-        self.max_workers = max_workers
-        self.settings = settings or get_settings()
-        self._running = False
-        self._workers = []
-        self._log = logging.getLogger(__name__)
-
-    async def start(self) -> None:
-        """Start the worker pool."""
-        if self._running:
-            return
-
-        self._running = True
-        self._log.info(f"Starting AsyncWorkerPool with {self.max_workers} workers")
-
-        # This would start actual worker tasks in a full implementation
-        # For now, it's a placeholder
-
-    async def stop(self) -> None:
-        """Stop the worker pool."""
-        if not self._running:
-            return
-
-        self._running = False
-        self._log.info("Stopping AsyncWorkerPool")
-
-        # This would stop worker tasks in a full implementation
-
-
-class WorkerPool:
-    """Sync wrapper for AsyncWorkerPool."""
-
-    def __init__(self, async_pool: AsyncWorkerPool):
-        """Initialize WorkerPool.
-
-        Args:
-            async_pool: The async worker pool to wrap
-        """
-        self._async_pool = async_pool
-
-    def start(self) -> None:
-        """Start the worker pool (sync version)."""
-        asyncio.run(self._async_pool.start())
-
-    def stop(self) -> None:
-        """Stop the worker pool (sync version)."""
-        asyncio.run(self._async_pool.stop())
