@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Result TTL cleanup helper
-The high-level API SHOULD provide a helper to clean up old task results based on the configured result TTL.
+The high-level API MUST provide a helper to clean up old task results based on the configured result TTL.
 
 #### Scenario: Cleanup old results using settings
 - **GIVEN** a `Settings` instance with `result_ttl` set to a positive number of seconds
