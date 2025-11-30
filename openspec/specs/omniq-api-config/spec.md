@@ -76,7 +76,7 @@ The library MUST emit basic logs for queue and worker behavior and allow users t
 - **AND** these logs MUST NOT include sensitive task argument data by default.
 
 ### Requirement: Result TTL cleanup helper
-The high-level API SHOULD provide a helper to clean up old task results based on the configured result TTL.
+The high-level API MUST provide a helper to clean up old task results based on the configured result TTL.
 
 #### Scenario: Cleanup old results using settings
 - **GIVEN** a `Settings` instance with `result_ttl` set to a positive number of seconds
