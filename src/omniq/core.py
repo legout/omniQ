@@ -9,6 +9,7 @@ from .config import Settings
 from .models import Task, TaskResult, create_task
 from .storage.base import BaseStorage
 from .storage.file import FileStorage
+from .worker import AsyncWorkerPool, WorkerPool
 from .logging import (
     get_logger,
     log_task_enqueued,
@@ -149,101 +150,20 @@ class AsyncOmniQ:
         else:
             return await self._storage.get_result(task_id)
 
-    def worker(self, concurrency: int = 1) -> AsyncWorkerPool:
+    def worker(
+        self, concurrency: int = 1, poll_interval: float = 1.0
+    ) -> AsyncWorkerPool:
         """
         Create a worker pool for processing tasks.
 
         Args:
             concurrency: Number of concurrent workers
+            poll_interval: Seconds between storage polls when idle
 
         Returns:
             AsyncWorkerPool instance
         """
-        return AsyncWorkerPool(self._storage, concurrency)
-
-
-class AsyncWorkerPool:
-    """
-    Async worker pool for processing tasks from storage.
-
-    Note: This is a placeholder implementation. The full worker pool
-    will be implemented in the add-async-worker-pool change.
-    """
-
-    def __init__(self, storage: BaseStorage, concurrency: int = 1):
-        self.storage = storage
-        self.concurrency = concurrency
-        self._running = False
-        self.logger = get_logger()
-
-    async def start(self) -> None:
-        """Start the worker pool."""
-        self._running = True
-        log_worker_started(self.concurrency)
-
-        # Simple task processing loop
-        while self._running:
-            try:
-                now = datetime.now(timezone.utc)
-                task = await self.storage.dequeue(now)
-
-                if task is not None:
-                    await self._process_task(task)
-                else:
-                    # No tasks available, wait a bit
-                    await asyncio.sleep(0.1)
-
-            except Exception as e:
-                self.logger.error(f"Worker error: {e}")
-                await asyncio.sleep(1)  # Back off on error
-
-    async def stop(self) -> None:
-        """Stop the worker pool."""
-        self._running = False
-        log_worker_stopped()
-
-    async def _process_task(self, task: Task) -> None:
-        """Process a single task."""
-        task_id = task["id"]
-        func_path = task["func_path"]
-
-        log_task_started(task_id, task["attempts"] + 1)
-
-        try:
-            # Import and execute function
-            module_name, func_name = func_path.rsplit(".", 1)
-            module = __import__(module_name, fromlist=[func_name])
-            func = getattr(module, func_name)
-
-            # Execute function
-            if inspect.iscoroutinefunction(func):
-                result = await func(*task["args"], **task["kwargs"])
-            else:
-                result = func(*task["args"], **task["kwargs"])
-
-            # Create success result
-            from .models import create_success_result
-
-            task_result = create_success_result(
-                task_id=task_id,
-                result=result,
-                attempts=task["attempts"] + 1,
-                last_attempt_at=datetime.now(timezone.utc),
-            )
-
-            # Mark as done
-            await self.storage.mark_done(task_id, task_result)
-            log_task_completed(task_id, task["attempts"] + 1)
-
-        except Exception as e:
-            error_msg = f"{type(e).__name__}: {e}"
-
-            # Determine if should retry
-            will_retry = task["attempts"] < task["max_retries"]
-
-            # Mark as failed
-            await self.storage.mark_failed(task_id, error_msg, will_retry)
-            log_task_failed(task_id, error_msg, will_retry)
+        return AsyncWorkerPool(self._storage, concurrency, poll_interval)
 
 
 class OmniQ:
@@ -332,50 +252,15 @@ class OmniQ:
         coro = self._async_omniq.get_result(task_id, wait, timeout)
         return self._run_async(coro)
 
-    def worker(self, concurrency: int = 1) -> SyncWorkerPool:
+    def worker(self, concurrency: int = 1, poll_interval: float = 1.0) -> WorkerPool:
         """
         Create a synchronous worker pool.
 
         Args:
             concurrency: Number of concurrent workers
+            poll_interval: Seconds between storage polls when idle
 
         Returns:
-            SyncWorkerPool instance
+            WorkerPool instance
         """
-        return SyncWorkerPool(self._async_omniq, concurrency)
-
-
-class SyncWorkerPool:
-    """
-    Synchronous wrapper for AsyncWorkerPool.
-
-    Runs the async worker pool in a dedicated thread.
-    """
-
-    def __init__(self, async_omniq: AsyncOmniQ, concurrency: int = 1):
-        self.async_omniq = async_omniq
-        self.concurrency = concurrency
-        self._worker = None
-        self._thread = None
-
-    def start(self) -> None:
-        """Start the worker pool (blocking)."""
-        import threading
-
-        def run_worker():
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-
-            worker = self.async_omniq.worker(self.concurrency)
-            self._worker = worker
-            loop.run_until_complete(worker.start())
-
-        self._thread = threading.Thread(target=run_worker, daemon=True)
-        self._thread.start()
-        self._thread.join()  # Wait for worker to finish
-
-    def stop(self) -> None:
-        """Stop the worker pool."""
-        if self._worker:
-            # This is a simplified stop - in practice would need thread-safe communication
-            self._worker._running = False
+        return WorkerPool(self._async_omniq._storage, concurrency, poll_interval)

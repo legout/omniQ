@@ -122,3 +122,59 @@ class CloudpickleSerializer:
             return self._cloudpickle.loads(data)
         except Exception as e:
             raise ValueError(f"Failed to decode result with cloudpickle: {e}")
+
+
+class JSONSerializer:
+    """
+    Simple JSON serializer for basic testing.
+
+    Uses standard library json module for basic serialization.
+    Limited to JSON-serializable types.
+    """
+
+    def __init__(self):
+        import json
+        from datetime import datetime
+
+        self._json = json
+
+        def datetime_converter(obj):
+            if isinstance(obj, datetime):
+                return obj.isoformat()
+            raise TypeError(
+                f"Object of type {type(obj).__name__} is not JSON serializable"
+            )
+
+        self._datetime_converter = datetime_converter
+
+    def encode_task(self, task: Task) -> bytes:
+        """Encode a task using JSON."""
+        try:
+            return self._json.dumps(task, default=self._datetime_converter).encode(
+                "utf-8"
+            )
+        except Exception as e:
+            raise ValueError(f"Failed to encode task with JSON: {e}")
+
+    def decode_task(self, data: bytes) -> Task:
+        """Decode a task using JSON."""
+        try:
+            return self._json.loads(data.decode("utf-8"))
+        except Exception as e:
+            raise ValueError(f"Failed to decode task with JSON: {e}")
+
+    def encode_result(self, result: TaskResult) -> bytes:
+        """Encode a result using JSON."""
+        try:
+            return self._json.dumps(result, default=self._datetime_converter).encode(
+                "utf-8"
+            )
+        except Exception as e:
+            raise ValueError(f"Failed to encode result with JSON: {e}")
+
+    def decode_result(self, data: bytes) -> TaskResult:
+        """Decode a result using JSON."""
+        try:
+            return self._json.loads(data.decode("utf-8"))
+        except Exception as e:
+            raise ValueError(f"Failed to decode result with JSON: {e}")

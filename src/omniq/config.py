@@ -29,7 +29,7 @@ class Settings:
         default_timeout: Optional[int] = 300,  # 5 minutes
         default_max_retries: int = 3,
         result_ttl: int = 86400,  # 24 hours in seconds
-        serializer: Literal["msgspec", "cloudpickle"] = "msgspec",
+        serializer: Literal["msgspec", "cloudpickle", "json"] = "json",
         log_level: str = "INFO",
     ):
         self.backend = backend
@@ -106,10 +106,10 @@ class Settings:
                 raise ValueError(f"Invalid OMNIQ_RESULT_TTL: {e}")
 
         # Serializer selection
-        serializer_env = os.getenv("OMNIQ_SERIALIZER", "msgspec").lower()
-        if serializer_env not in ("msgspec", "cloudpickle"):
+        serializer_env = os.getenv("OMNIQ_SERIALIZER", "json").lower()
+        if serializer_env not in ("msgspec", "cloudpickle", "json"):
             raise ValueError(
-                f"Invalid OMNIQ_SERIALIZER: {serializer_env}. Must be 'msgspec' or 'cloudpickle'"
+                f"Invalid OMNIQ_SERIALIZER: {serializer_env}. Must be 'msgspec', 'cloudpickle', or 'json'"
             )
         serializer = serializer_env
 
@@ -143,6 +143,10 @@ class Settings:
             from .serialization import CloudpickleSerializer
 
             return CloudpickleSerializer()
+        elif self.serializer == "json":
+            from .serialization import JSONSerializer
+
+            return JSONSerializer()
         else:
             raise ValueError(f"Unknown serializer: {self.serializer}")
 
