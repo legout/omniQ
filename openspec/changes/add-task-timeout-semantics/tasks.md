@@ -12,4 +12,3 @@
 - [x] 3.1 Add tests that verify tasks exceeding their timeout are cancelled and recorded as failures.
 - [x] 3.2 Add tests that verify tasks with `timeout=None` or unset are not subject to per-task timeouts.
 - [x] 3.3 Add tests that verify timed-out tasks participate in retry/backoff behavior as specified.
-

@@ -13,4 +13,3 @@ Without explicit timeout semantics, long-running or stuck callables can block wo
 - Aligns the implementation and specs with the v1 PRD requirement for timeout semantics.
 - Provides a clear failure mode for hung or excessively long-running tasks.
 - Keeps the worker model simple by treating timeouts as another failure mode that plugs into the existing retry logic.
-

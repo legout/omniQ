@@ -16,4 +16,3 @@ The worker pool MUST enforce per-task execution timeouts when a positive `timeou
 - **WHEN** the worker executes the task
 - **THEN** the worker MUST NOT enforce a per-task timeout based on this field
 - **AND** any execution limits in this case MUST come only from broader worker or process-level constraints, not from the task's `timeout`.
-
