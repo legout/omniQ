@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable, Optional
 
@@ -194,6 +194,34 @@ class AsyncOmniQ:
             concurrency=max_workers,
         )
 
+    async def purge_expired_results(self) -> int:
+        """Clean up old task results based on the configured result TTL.
+
+        This method computes a cutoff time using the current result_ttl setting
+        and delegates to the storage backend to purge expired results.
+
+        Returns:
+            The number of results that were purged
+
+        Raises:
+            Any storage-specific errors
+        """
+        from datetime import datetime, timezone
+
+        # Compute cutoff time: current time minus result_ttl
+        now = datetime.now(timezone.utc)
+        older_than = now - timedelta(seconds=self.settings.result_ttl)
+
+        logger.info(
+            f"Purging results older than {older_than} (result_ttl={self.settings.result_ttl}s)"
+        )
+
+        # Delegate to storage backend
+        purged_count = await self.storage.purge_results(older_than)
+
+        logger.info(f"Purged {purged_count} expired results")
+        return purged_count
+
     async def close(self) -> None:
         """Close the AsyncOmniQ instance and cleanup resources."""
         if self._storage_instance:
@@ -319,6 +347,21 @@ class OmniQ:
             storage=self._async_instance.storage,
             concurrency=max_workers,
         )
+
+    def purge_expired_results(self) -> int:
+        """Clean up old task results based on the configured result TTL (sync version).
+
+        This method computes a cutoff time using the current result_ttl setting
+        and delegates to the storage backend to purge expired results.
+
+        Returns:
+            The number of results that were purged
+
+        Raises:
+            Any storage-specific errors
+        """
+        self._ensure_event_loop()
+        return asyncio.run(self._async_instance.purge_expired_results())
 
     def close(self) -> None:
         """Close the OmniQ instance and cleanup resources."""
