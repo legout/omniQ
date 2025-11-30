@@ -131,10 +131,14 @@ class SQLiteStorage(BaseStorage):
         conn = await self._get_connection()
 
         try:
-            # Extract eta from schedule
-            schedule = task["schedule"]
+            # Extract eta from schedule and create serializable copy
+            schedule = task["schedule"].copy()
             eta = schedule.get("eta")
             eta_str = self._serialize_datetime(eta) if eta else None
+
+            # Serialize datetime objects in schedule
+            if eta:
+                schedule["eta"] = eta_str
 
             await conn.execute(
                 """
@@ -186,7 +190,6 @@ class SQLiteStorage(BaseStorage):
                 AND (eta IS NULL OR eta <= ?)
                 ORDER BY eta ASC, created_at ASC
                 LIMIT 1
-                FOR UPDATE
             """,
                 (now_str,),
             )
@@ -484,7 +487,7 @@ class SQLiteStorage(BaseStorage):
 
             # Update schedule with new eta
             schedule = self._deserialize_json(row[0])
-            schedule["eta"] = new_eta
+            schedule["eta"] = self._serialize_datetime(new_eta)
             updated_schedule_json = self._serialize_json(schedule)
 
             # Update task with new eta and PENDING status
