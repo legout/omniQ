@@ -9,6 +9,7 @@ from .config import Settings
 from .models import Task, TaskResult, create_task
 from .storage.base import BaseStorage
 from .storage.file import FileStorage
+from .storage.sqlite import SQLiteStorage
 from .worker import AsyncWorkerPool, WorkerPool
 from .logging import (
     get_logger,
@@ -56,8 +57,7 @@ class AsyncOmniQ:
         if self.settings.backend.value == "file":
             return FileStorage(self.settings.base_dir, serializer)
         elif self.settings.backend.value == "sqlite":
-            # SQLite storage will be implemented in a future change
-            raise NotImplementedError("SQLite backend is not yet implemented")
+            return SQLiteStorage(self.settings.base_dir / "omniq.db")
         else:
             raise ValueError(f"Unknown backend: {self.settings.backend}")
 

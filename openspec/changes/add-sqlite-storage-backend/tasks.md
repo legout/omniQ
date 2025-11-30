@@ -5,5 +5,5 @@
 
 ## 2. Tests and Validation
 - [ ] 2.1 Add tests covering enqueue/dequeue and mark_* operations for `SQLiteStorage`, including empty-queue behavior.
-- [ ] 2.2 Add tests verifying basic scheduling (`eta`), retries, and TTL cleanup behavior using the SQLite backend.
+- [x] 2.2 Add tests verifying basic scheduling (`eta`), retries, and TTL cleanup behavior using the SQLite backend.
 
