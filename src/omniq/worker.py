@@ -166,29 +166,55 @@ class AsyncWorkerPool:
                 await self._reschedule_interval_task(task)
 
         except Exception as e:
-            logger.error(f"Task {task_id} failed: {e}", exc_info=True)
-            await self._handle_task_failure(task, e)
+            # Handle timeout errors specially
+            if isinstance(e, asyncio.TimeoutError):
+                logger.warning(
+                    f"Task {task_id} timed out after {task.schedule.timeout}s"
+                )
+                # Create a timeout error message
+                timeout_error = TimeoutError(
+                    f"Task execution exceeded timeout of {task.schedule.timeout} seconds"
+                )
+                await self._handle_task_failure(task, timeout_error)
+            else:
+                logger.error(f"Task {task_id} failed: {e}", exc_info=True)
+                await self._handle_task_failure(task, e)
 
     async def _execute_callable(self, task: Task) -> Any:
-        """Execute the task's callable.
+        """Execute the task's callable with optional timeout.
 
         Args:
             task: The task containing the callable to execute
 
         Returns:
             The result of the callable execution
+
+        Raises:
+            asyncio.TimeoutError: If the task exceeds its timeout
         """
         # Resolve callable from func_path
         callable_func = await self._resolve_callable(task.func_path)
 
         # Check if callable is async
         if inspect.iscoroutinefunction(callable_func):
-            # Execute async function
-            return await callable_func(*task.args, **task.kwargs)
+            # Execute async function with timeout if configured
+            if task.schedule.timeout is not None and task.schedule.timeout > 0:
+                return await asyncio.wait_for(
+                    callable_func(*task.args, **task.kwargs),
+                    timeout=task.schedule.timeout,
+                )
+            else:
+                return await callable_func(*task.args, **task.kwargs)
         else:
-            # Execute sync function in thread pool
+            # Execute sync function in thread pool with timeout if configured
             func_call = functools.partial(callable_func, *task.args, **task.kwargs)
-            return await asyncio.get_event_loop().run_in_executor(None, func_call)
+            if task.schedule.timeout is not None and task.schedule.timeout > 0:
+                return await asyncio.wait_for(
+                    asyncio.get_event_loop().run_in_executor(None, func_call),
+                    timeout=task.schedule.timeout,
+                )
+            else:
+                return await asyncio.get_event_loop().run_in_executor(None, func_call)
 
     async def _resolve_callable(self, func_path: str) -> Callable:
         """Resolve a callable from its module.path string.
