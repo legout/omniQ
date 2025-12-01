@@ -4,6 +4,7 @@ import asyncio
 import inspect
 import random
 import time
+import warnings
 from datetime import datetime, timezone, timedelta
 from typing import Any, Callable, Optional
 
@@ -44,25 +45,54 @@ class AsyncWorkerPool:
 
     def __init__(
         self,
-        queue: AsyncTaskQueue,
+        queue: Optional[AsyncTaskQueue] = None,
+        storage: Optional[BaseStorage] = None,
         concurrency: int = 1,
         poll_interval: float = 1.0,
+        logger: Optional[Any] = None,
     ):
         """
         Initialize the worker pool.
 
         Args:
-            queue: AsyncTaskQueue for task operations
+            queue: AsyncTaskQueue for task operations (recommended)
+            storage: BaseStorage for task operations (deprecated, use queue instead)
             concurrency: Maximum number of concurrent tasks
             poll_interval: Seconds between queue polls when idle
+            logger: Logger instance (uses default if None)
         """
+        # Parameter validation
+        if queue is not None and storage is not None:
+            raise ValueError("Cannot provide both 'queue' and 'storage' parameters")
+
+        if queue is None and storage is None:
+            raise ValueError("Either 'queue' or 'storage' must be provided")
+
+        # Type validation
+        if queue is not None and not isinstance(queue, AsyncTaskQueue):
+            raise TypeError("'queue' must be AsyncTaskQueue")
+
+        if storage is not None and not isinstance(storage, BaseStorage):
+            raise TypeError("'storage' must be BaseStorage")
+
+        # Handle backward compatibility
+        if queue is None and storage is not None:
+            # Legacy interface - create queue internally
+            warnings.warn(
+                "Passing 'storage' to AsyncWorkerPool is deprecated. "
+                "Use 'queue' parameter instead: AsyncWorkerPool(queue=AsyncTaskQueue(storage=storage))",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            queue = AsyncTaskQueue(storage=storage)
+
         self.queue = queue
         self.concurrency = max(1, concurrency)
         self.poll_interval = max(0.1, poll_interval)
         self._running = False
         self._tasks = set()  # Track currently running tasks
         self._shutdown_event = asyncio.Event()
-        self.logger = get_logger()
+        self.logger = logger or get_logger()
 
     async def start(self) -> None:
         """Start the worker pool and begin processing tasks."""
@@ -350,7 +380,8 @@ class WorkerPool:
 
     def __init__(
         self,
-        queue: AsyncTaskQueue,
+        queue: Optional[AsyncTaskQueue] = None,
+        storage: Optional[BaseStorage] = None,
         concurrency: int = 1,
         poll_interval: float = 1.0,
     ):
@@ -358,10 +389,36 @@ class WorkerPool:
         Initialize the sync worker pool wrapper.
 
         Args:
-            queue: AsyncTaskQueue for task operations
+            queue: AsyncTaskQueue for task operations (recommended)
+            storage: BaseStorage for task operations (deprecated, use queue instead)
             concurrency: Maximum number of concurrent tasks
             poll_interval: Seconds between queue polls when idle
         """
+        # Parameter validation
+        if queue is not None and storage is not None:
+            raise ValueError("Cannot provide both 'queue' and 'storage' parameters")
+
+        if queue is None and storage is None:
+            raise ValueError("Either 'queue' or 'storage' must be provided")
+
+        # Type validation
+        if queue is not None and not isinstance(queue, AsyncTaskQueue):
+            raise TypeError("'queue' must be AsyncTaskQueue")
+
+        if storage is not None and not isinstance(storage, BaseStorage):
+            raise TypeError("'storage' must be BaseStorage")
+
+        # Handle backward compatibility
+        if queue is None and storage is not None:
+            # Legacy interface - create queue internally
+            warnings.warn(
+                "Passing 'storage' to WorkerPool is deprecated. "
+                "Use 'queue' parameter instead: WorkerPool(queue=AsyncTaskQueue(storage=storage))",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            queue = AsyncTaskQueue(storage=storage)
+
         self.queue = queue
         self.concurrency = concurrency
         self.poll_interval = poll_interval
@@ -389,9 +446,9 @@ class WorkerPool:
 
             # Create and start async worker pool
             self._async_pool = AsyncWorkerPool(
-                self.queue,
-                self.concurrency,
-                self.poll_interval,
+                queue=self.queue,
+                concurrency=self.concurrency,
+                poll_interval=self.poll_interval,
             )
 
             # Run the worker pool

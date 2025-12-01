@@ -8,6 +8,7 @@ This guide helps you migrate OmniQ components while maintaining backward compati
 2. [Logging Migration](#logging-migration)
 3. [Task Interval Type Migration](#task-interval-type-migration)
 4. [TaskError Model Migration](#taskerror-migration)
+5. [Worker Compatibility Migration](#worker-compatibility-migration)
 ---
 
 ## Storage Interface Migration
@@ -1082,3 +1083,332 @@ if __name__ == "__main__":
 ```
 
 This migration provides comprehensive error handling while maintaining full backward compatibility and adding powerful new debugging and monitoring capabilities.
+
+---
+
+## Worker Compatibility Migration
+
+This section covers migration for AsyncWorkerPool constructor to restore backward compatibility while encouraging migration to the new queue-based interface.
+
+### Overview
+
+The AsyncWorkerPool constructor has been updated to support both the new `queue` parameter and the legacy `storage` parameter, maintaining backward compatibility while providing a clear migration path to the new interface.
+
+### What Changed
+
+- **Dual Interface Support**: Constructor now accepts both `queue` and `storage` parameters
+- **Backward Compatibility**: Existing code using `storage` parameter continues to work
+- **Deprecation Warnings**: Legacy `storage` parameter triggers deprecation warnings
+- **Internal Queue Creation**: When `storage` is provided, AsyncTaskQueue is created automatically
+- **Parameter Validation**: Clear error messages for invalid parameter combinations
+
+### Migration Steps
+
+#### 1. Immediate (No Changes Required)
+
+**Existing code continues to work:**
+```python
+from omniq.worker import AsyncWorkerPool
+from omniq.storage.file import FileStorage
+
+# Legacy interface - still works with deprecation warning
+storage = FileStorage("./data", JSONSerializer())
+worker = AsyncWorkerPool(storage=storage, concurrency=4)
+```
+
+#### 2. Recommended Migration
+
+**Migrate to new queue interface:**
+```python
+from omniq.worker import AsyncWorkerPool
+from omniq.queue import AsyncTaskQueue
+from omniq.storage.file import FileStorage
+
+# New recommended interface
+storage = FileStorage("./data", JSONSerializer())
+queue = AsyncTaskQueue(storage=storage)
+worker = AsyncWorkerPool(queue=queue, concurrency=4)
+```
+
+#### 3. Best Practice (AsyncOmniQ)
+
+**Use AsyncOmniQ for automatic setup:**
+```python
+from omniq import AsyncOmniQ
+from omniq.config import Settings
+
+# Recommended - AsyncOmniQ handles everything
+settings = Settings()
+omniq = AsyncOmniQ(settings=settings)
+worker = omniq.worker(concurrency=4)  # Queue and storage created automatically
+```
+
+### Constructor Changes
+
+#### New Signature
+
+```python
+def __init__(
+    self,
+    queue: Optional[AsyncTaskQueue] = None,        # New parameter (recommended)
+    storage: Optional[BaseStorage] = None,           # Legacy parameter (deprecated)
+    concurrency: int = 1,
+    poll_interval: float = 1.0,
+    logger: Optional[Logger] = None,
+):
+```
+
+#### Parameter Validation
+
+```python
+# Valid combinations
+AsyncWorkerPool(queue=queue)                    # New interface
+AsyncWorkerPool(storage=storage)                # Legacy interface (with warning)
+AsyncWorkerPool(queue=queue, logger=custom)     # New interface with logger
+
+# Invalid combinations
+AsyncWorkerPool()                               # Error: no parameters
+AsyncWorkerPool(queue=queue, storage=storage)   # Error: both parameters
+AsyncWorkerPool(queue="invalid")                # Error: wrong type
+AsyncWorkerPool(storage="invalid")               # Error: wrong type
+```
+
+### Deprecation Warnings
+
+#### Warning Message
+
+```
+DeprecationWarning: Passing 'storage' to AsyncWorkerPool is deprecated. 
+Use 'queue' parameter instead: AsyncWorkerPool(queue=AsyncTaskQueue(storage=storage))
+```
+
+#### Capturing Warnings
+
+```python
+import warnings
+
+# Capture deprecation warnings
+with warnings.catch_warnings(record=True) as w:
+    warnings.simplefilter("always")
+    worker = AsyncWorkerPool(storage=storage)
+    
+    if w:
+        print(f"Deprecation warning: {w[0].message}")
+        print(f"Stack level: {w[0].lineno}")
+```
+
+### Migration Examples
+
+#### Basic Worker Creation
+
+**Before (legacy):**
+```python
+from omniq.worker import AsyncWorkerPool
+from omniq.storage.sqlite import SQLiteStorage
+
+storage = SQLiteStorage("tasks.db")
+worker = AsyncWorkerPool(storage=storage, concurrency=2)
+```
+
+**After (new interface):**
+```python
+from omniq.worker import AsyncWorkerPool
+from omniq.queue import AsyncTaskQueue
+from omniq.storage.sqlite import SQLiteStorage
+
+storage = SQLiteStorage("tasks.db")
+queue = AsyncTaskQueue(storage=storage)
+worker = AsyncWorkerPool(queue=queue, concurrency=2)
+```
+
+#### Worker with Custom Logger
+
+**Before (legacy):**
+```python
+import logging
+from omniq.worker import AsyncWorkerPool
+
+custom_logger = logging.getLogger("my_worker")
+worker = AsyncWorkerPool(storage=storage, logger=custom_logger)
+```
+
+**After (new interface):**
+```python
+import logging
+from omniq.worker import AsyncWorkerPool
+
+custom_logger = logging.getLogger("my_worker")
+worker = AsyncWorkerPool(queue=queue, logger=custom_logger)
+```
+
+#### WorkerPool (Sync Wrapper)
+
+**Before (legacy):**
+```python
+from omniq.worker import WorkerPool
+
+worker = WorkerPool(storage=storage, concurrency=4)
+```
+
+**After (new interface):**
+```python
+from omniq.worker import WorkerPool
+
+worker = WorkerPool(queue=queue, concurrency=4)
+```
+
+### AsyncOmniQ Integration
+
+The AsyncOmniQ class has been updated to use the new interface internally:
+
+```python
+from omniq import AsyncOmniQ
+
+# AsyncOmniQ automatically uses new interface
+omniq = AsyncOmniQ()
+worker = omniq.worker(concurrency=2)
+
+# Internally equivalent to:
+# queue = AsyncTaskQueue(storage=omniq._storage)
+# worker = AsyncWorkerPool(queue=queue, concurrency=2)
+```
+
+### Benefits of Migration
+
+1. **Clear Separation**: Queue handles task operations, worker handles execution
+2. **Better Architecture**: More explicit dependency injection
+3. **Future-Proof**: New features will be queue-focused
+4. **Type Safety**: Better type hints and validation
+5. **Testing**: Easier to mock and test components separately
+
+### Validation Checklist
+
+- [ ] Update worker creation to use `queue` parameter
+- [ ] Update WorkerPool creation to use `queue` parameter  
+- [ ] Verify deprecation warnings appear for legacy usage
+- [ ] Test parameter validation error messages
+- [ ] Confirm AsyncOmniQ integration works
+- [ ] Update any custom worker subclasses
+- [ ] Update documentation and examples
+- [ ] Test both interfaces work correctly
+
+### Troubleshooting
+
+#### Common Issues
+
+1. **Deprecation Warnings**: 
+   - **Cause**: Using legacy `storage` parameter
+   - **Fix**: Migrate to `queue` parameter
+
+2. **Parameter Validation Errors**:
+   - **Cause**: Providing both `queue` and `storage` or neither
+   - **Fix**: Provide exactly one parameter
+
+3. **Type Errors**:
+   - **Cause**: Passing wrong types to parameters
+   - **Fix**: Ensure `queue` is AsyncTaskQueue, `storage` is BaseStorage
+
+#### Getting Help
+
+```python
+# Test both interfaces
+from omniq.worker import AsyncWorkerPool
+from omniq.queue import AsyncTaskQueue
+from omniq.storage.file import FileStorage
+import warnings
+
+storage = FileStorage("./test", JSONSerializer())
+
+# Test new interface
+queue = AsyncTaskQueue(storage=storage)
+worker_new = AsyncWorkerPool(queue=queue)
+print("New interface works")
+
+# Test legacy interface with warning
+with warnings.catch_warnings(record=True) as w:
+    warnings.simplefilter("always")
+    worker_legacy = AsyncWorkerPool(storage=storage)
+    print(f"Legacy interface works with {len(w)} warning(s)")
+```
+
+### Performance Considerations
+
+- **Queue Creation**: Minimal overhead when creating queue from storage
+- **Memory**: Similar memory footprint for both interfaces
+- **Performance**: No performance difference after initialization
+- **Migration**: Zero runtime performance impact
+
+### Complete Migration Example
+
+```python
+import asyncio
+import warnings
+from omniq import AsyncOmniQ
+from omniq.worker import AsyncWorkerPool
+from omniq.queue import AsyncTaskQueue
+from omniq.storage.file import FileStorage
+from omniq.serialization import JSONSerializer
+
+async def migrate_worker_creation():
+    """Example of migrating worker creation patterns."""
+    
+    print("=== Worker Compatibility Migration Example ===\n")
+    
+    # 1. Legacy interface (still works with warning)
+    print("1. Testing legacy interface...")
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        
+        storage = FileStorage("./legacy_data", JSONSerializer())
+        legacy_worker = AsyncWorkerPool(storage=storage, concurrency=2)
+        
+        if w:
+            print(f"   Deprecation warning: {w[0].message}")
+        print("   ✓ Legacy interface works\n")
+    
+    # 2. New interface (recommended)
+    print("2. Testing new interface...")
+    storage = FileStorage("./new_data", JSONSerializer())
+    queue = AsyncTaskQueue(storage=storage)
+    new_worker = AsyncWorkerPool(queue=queue, concurrency=2)
+    print("   ✓ New interface works without warnings\n")
+    
+    # 3. AsyncOmniQ integration (best practice)
+    print("3. Testing AsyncOmniQ integration...")
+    omniq = AsyncOmniQ()
+    omniq_worker = omniq.worker(concurrency=2)
+    print("   ✓ AsyncOmniQ integration works\n")
+    
+    # 4. Error handling
+    print("4. Testing error handling...")
+    
+    try:
+        AsyncWorkerPool()  # No parameters
+    except ValueError as e:
+        print(f"   ✓ No parameters error: {e}")
+    
+    try:
+        AsyncWorkerPool(queue=queue, storage=storage)  # Both parameters
+    except ValueError as e:
+        print(f"   ✓ Both parameters error: {e}")
+    
+    try:
+        AsyncWorkerPool(queue="invalid")  # Wrong type
+    except TypeError as e:
+        print(f"   ✓ Type error: {e}")
+    
+    print("\n=== Migration Complete ===")
+    print("Recommendation: Use AsyncOmniQ for automatic setup,")
+    print("or migrate to queue parameter for explicit control.")
+
+if __name__ == "__main__":
+    asyncio.run(migrate_worker_creation())
+```
+
+### Timeline
+
+- **v1.x**: Legacy interface supported with deprecation warnings
+- **v2.0**: Legacy interface will be removed (breaking change)
+- **Migration Period**: Extended support for legacy interface during v1.x lifecycle
+
+This migration ensures backward compatibility while providing a clear path forward to the improved queue-based architecture.

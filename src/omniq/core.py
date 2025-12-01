@@ -169,7 +169,9 @@ class AsyncOmniQ:
         Returns:
             AsyncWorkerPool instance
         """
-        return AsyncWorkerPool(self._queue, concurrency, poll_interval)
+        return AsyncWorkerPool(
+            queue=self._queue, concurrency=concurrency, poll_interval=poll_interval
+        )
 
 
 class OmniQ:
@@ -269,4 +271,8 @@ class OmniQ:
         Returns:
             WorkerPool instance
         """
-        return WorkerPool(self._async_omniq._storage, concurrency, poll_interval)
+        return WorkerPool(
+            queue=self._async_omniq._queue,
+            concurrency=concurrency,
+            poll_interval=poll_interval,
+        )
