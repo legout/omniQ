@@ -10,6 +10,7 @@ from .models import Task, TaskResult, create_task
 from .storage.base import BaseStorage
 from .storage.file import FileStorage
 from .storage.sqlite import SQLiteStorage
+from .queue import AsyncTaskQueue
 from .worker import AsyncWorkerPool, WorkerPool
 from .logging import (
     get_logger,
@@ -44,6 +45,9 @@ class AsyncOmniQ:
 
         # Initialize storage backend
         self._storage = self._create_storage()
+
+        # Initialize task queue
+        self._queue = AsyncTaskQueue(self._storage)
 
         self.logger = get_logger()
 
@@ -103,11 +107,16 @@ class AsyncOmniQ:
             timeout=timeout,
         )
 
-        # Enqueue to storage
-        task_id = await self._storage.enqueue(task)
-
-        # Log enqueuing
-        log_task_enqueued(task_id, func_path)
+        # Enqueue to task queue
+        task_id = await self._queue.enqueue(
+            func_path=func_path,
+            args=args,
+            kwargs=kwargs,
+            eta=eta,
+            interval=interval,
+            max_retries=max_retries,
+            timeout=timeout,
+        )
 
         return task_id
 
@@ -145,7 +154,7 @@ class AsyncOmniQ:
                 # Poll interval (100ms)
                 await asyncio.sleep(0.1)
         else:
-            return await self._storage.get_result(task_id)
+            return await self._queue.get_result(task_id)
 
     def worker(
         self, concurrency: int = 1, poll_interval: float = 1.0
@@ -160,7 +169,7 @@ class AsyncOmniQ:
         Returns:
             AsyncWorkerPool instance
         """
-        return AsyncWorkerPool(self._storage, concurrency, poll_interval)
+        return AsyncWorkerPool(self._queue, concurrency, poll_interval)
 
 
 class OmniQ:

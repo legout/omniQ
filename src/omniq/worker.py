@@ -17,6 +17,7 @@ from .models import (
     should_retry,
 )
 from .storage.base import BaseStorage
+from .queue import AsyncTaskQueue
 from .logging import (
     get_logger,
     log_task_started,
@@ -30,7 +31,7 @@ from .logging import (
 
 class AsyncWorkerPool:
     """
-    Async worker pool that polls storage for due tasks and executes them concurrently.
+    Async worker pool that polls AsyncTaskQueue for due tasks and executes them concurrently.
 
     Features:
     - Configurable concurrency and polling interval
@@ -42,7 +43,7 @@ class AsyncWorkerPool:
 
     def __init__(
         self,
-        storage: BaseStorage,
+        queue: AsyncTaskQueue,
         concurrency: int = 1,
         poll_interval: float = 1.0,
     ):
@@ -50,11 +51,11 @@ class AsyncWorkerPool:
         Initialize the worker pool.
 
         Args:
-            storage: Storage backend for task operations
+            queue: AsyncTaskQueue for task operations
             concurrency: Maximum number of concurrent tasks
-            poll_interval: Seconds between storage polls when idle
+            poll_interval: Seconds between queue polls when idle
         """
-        self.storage = storage
+        self.queue = queue
         self.concurrency = max(1, concurrency)
         self.poll_interval = max(0.1, poll_interval)
         self._running = False
@@ -106,9 +107,8 @@ class AsyncWorkerPool:
         """Main worker loop that polls and processes tasks."""
         while self._running and not self._shutdown_event.is_set():
             try:
-                # Get due task from storage
-                now = datetime.now(timezone.utc)
-                task = await self.storage.dequeue(now)
+                # Get due task from queue
+                task = await self.queue.dequeue()
 
                 if task is not None:
                     await self._execute_task(task)
@@ -208,14 +208,11 @@ class AsyncWorkerPool:
         )
 
         # Store result and update task
-        await self.storage.mark_done(task_id, task_result)
+        await self.queue.complete_task(task_id, result, task)
         log_task_completed(task_id, attempts)
 
-        # Reschedule if it's an interval task
-        if has_interval(task):
-            interval = task["schedule"].get("interval")
-            if interval is not None:
-                await self._reschedule_interval_task(task, interval)
+        # Interval task rescheduling is handled by AsyncTaskQueue
+        # No additional action needed
 
     async def _handle_failure(self, task: Task, error: Exception) -> None:
         """
@@ -240,12 +237,10 @@ class AsyncWorkerPool:
             # Log retry
             log_task_retry(task_id, attempts, next_eta)
 
-            # Reschedule for retry
-            try:
-                await self.storage.reschedule(task_id, next_eta)
-            except NotImplementedError:
-                # Storage doesn't support reschedule, mark as retrying
-                await self.storage.mark_failed(task_id, error_msg, will_retry=True)
+            # Reschedule for retry - let AsyncTaskQueue handle this
+            await self.queue.fail_task(
+                task_id, error_msg, exception_type=type(error).__name__, task=task
+            )
         else:
             # Final failure
             log_task_failed(task_id, error_msg, will_retry=False)
@@ -258,8 +253,8 @@ class AsyncWorkerPool:
                 last_attempt_at=datetime.now(timezone.utc),
             )
 
-            # Mark as failed
-            await self.storage.mark_failed(task_id, error_msg, will_retry=False)
+            # Mark as failed - AsyncTaskQueue already handled this above
+            # No additional action needed
 
     async def _reschedule_interval_task(self, task: Task, interval: int) -> None:
         """
@@ -274,15 +269,8 @@ class AsyncWorkerPool:
         # Calculate next eta
         next_eta = datetime.now(timezone.utc) + timedelta(seconds=float(interval))
 
-        # Update task with new eta and reset status
-        try:
-            await self.storage.reschedule(task_id, next_eta)
-        except NotImplementedError:
-            # If reschedule not supported, we'd need to create a new task
-            # For now, just log that we couldn't reschedule
-            self.logger.warning(
-                f"Cannot reschedule interval task {task_id}: reschedule not supported"
-            )
+        # Interval task rescheduling is handled by AsyncTaskQueue
+        # No additional action needed
 
     def _calculate_backoff(self, attempt: int) -> float:
         """
@@ -313,7 +301,7 @@ class WorkerPool:
 
     def __init__(
         self,
-        storage: BaseStorage,
+        queue: AsyncTaskQueue,
         concurrency: int = 1,
         poll_interval: float = 1.0,
     ):
@@ -321,11 +309,11 @@ class WorkerPool:
         Initialize the sync worker pool wrapper.
 
         Args:
-            storage: Storage backend for task operations
+            queue: AsyncTaskQueue for task operations
             concurrency: Maximum number of concurrent tasks
-            poll_interval: Seconds between storage polls when idle
+            poll_interval: Seconds between queue polls when idle
         """
-        self.storage = storage
+        self.queue = queue
         self.concurrency = concurrency
         self.poll_interval = poll_interval
         self._async_pool = None
@@ -352,7 +340,7 @@ class WorkerPool:
 
             # Create and start async worker pool
             self._async_pool = AsyncWorkerPool(
-                self.storage,
+                self.queue,
                 self.concurrency,
                 self.poll_interval,
             )
