@@ -9,3 +9,4 @@ wheels/
 # Virtual environments
 .venv
 omniq_data/
+logs/omniq.log

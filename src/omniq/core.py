@@ -40,10 +40,7 @@ class AsyncOmniQ:
         self.settings = settings or Settings.from_env()
         self.settings.validate()
 
-        # Configure logging
-        from .logging import configure_logging
-
-        configure_logging(self.settings.log_level)
+        # Logging is configured automatically on import
 
         # Initialize storage backend
         self._storage = self._create_storage()
