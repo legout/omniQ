@@ -1,6 +1,177 @@
-# Migration Guide: From Standard Logging to Enhanced Loguru
+# Migration Guide
 
-This guide helps you migrate from standard Python logging back to enhanced Loguru-based logging while maintaining v1 compliance.
+This guide helps you migrate OmniQ components while maintaining backward compatibility.
+
+## Table of Contents
+
+1. [Storage Interface Migration](#storage-interface-migration)
+2. [Logging Migration](#logging-migration)
+
+---
+
+## Storage Interface Migration
+
+This section covers migration for storage backend implementations due to the new retry and interval task support.
+
+### Overview
+
+The BaseStorage interface has been enhanced with two new abstract methods to support proper retry and interval task functionality:
+
+- `get_task(task_id: str) -> Optional[Task]`
+- `reschedule(task_id: str, new_eta: datetime) -> None`
+
+### What Changed
+
+- **New Required Methods**: Storage backends must implement `get_task()` and `reschedule()`
+- **Removed Fallbacks**: AsyncTaskQueue no longer uses fallback `_get_task_by_id()` that returned `None`
+- **Enhanced Retry Logic**: Tasks can now be properly retrieved and retried
+- **Interval Task Support**: Recurring tasks work correctly with proper rescheduling
+
+### Migration Steps for Storage Backend Developers
+
+If you have a custom storage backend, follow these steps:
+
+#### 1. Implement `get_task()` Method
+
+```python
+async def get_task(self, task_id: str) -> Optional[Task]:
+    """
+    Retrieve a task by ID.
+    
+    Args:
+        task_id: Unique task identifier
+        
+    Returns:
+        Task if found, None otherwise
+        
+    Raises:
+        StorageError: If retrieval fails
+    """
+    # Your implementation here
+    pass
+```
+
+**Example for Redis Storage:**
+```python
+async def get_task(self, task_id: str) -> Optional[Task]:
+    try:
+        data = await self.redis.get(f"task:{task_id}")
+        if data is None:
+            return None
+        return self.serializer.decode_task(data)
+    except Exception as e:
+        raise StorageError(f"Failed to retrieve task {task_id}: {e}")
+```
+
+#### 2. Implement `reschedule()` Method
+
+```python
+async def reschedule(self, task_id: str, new_eta: datetime) -> None:
+    """
+    Update a task's ETA for retry or interval rescheduling.
+    
+    Args:
+        task_id: Unique task identifier
+        new_eta: New execution time
+        
+    Raises:
+        NotFoundError: If task doesn't exist
+        StorageError: If update fails
+    """
+    # Your implementation here
+    pass
+```
+
+**Example for Redis Storage:**
+```python
+async def reschedule(self, task_id: str, new_eta: datetime) -> None:
+    try:
+        # Get existing task
+        data = await self.redis.get(f"task:{task_id}")
+        if data is None:
+            raise NotFoundError(f"Task {task_id} not found")
+        
+        task = self.serializer.decode_task(data)
+        
+        # Update ETA and status
+        task["schedule"]["eta"] = new_eta
+        task["status"] = TaskStatus.PENDING
+        task["updated_at"] = datetime.now(timezone.utc)
+        
+        # Save updated task
+        await self.redis.set(
+            f"task:{task_id}", 
+            self.serializer.encode_task(task)
+        )
+        
+        # Update scheduling queue
+        await self.redis.zadd(
+            "schedule",
+            {task_id: new_eta.timestamp()}
+        )
+        
+    except Exception as e:
+        raise StorageError(f"Failed to reschedule task {task_id}: {e}")
+```
+
+#### 3. Update Method Signatures
+
+Ensure your storage class inherits from the updated BaseStorage:
+
+```python
+from omniq.storage.base import BaseStorage
+
+class MyStorage(BaseStorage):
+    async def get_task(self, task_id: str) -> Optional[Task]:
+        # Implementation
+        pass
+    
+    async def reschedule(self, task_id: str, new_eta: datetime) -> None:
+        # Implementation
+        pass
+    
+    # ... other existing methods
+```
+
+### Backward Compatibility
+
+- **Existing Code**: All existing code continues to work without changes
+- **No Breaking Changes**: Only additions to the interface
+- **Graceful Degradation**: Old backends will fail clearly with NotImplementedError
+
+### Testing Your Implementation
+
+Use the provided test files as templates:
+
+```bash
+# Test your storage implementation
+python test_storage_interface.py
+
+# Test retry functionality
+python test_queue_retry.py
+
+# Test interval tasks
+python test_interval_tasks.py
+```
+
+### Validation Checklist
+
+- [ ] `get_task()` returns correct task for valid IDs
+- [ ] `get_task()` returns `None` for non-existent IDs
+- [ ] `get_task()` raises `StorageError` on retrieval failures
+- [ ] `reschedule()` updates task ETA correctly
+- [ ] `reschedule()` sets task status to `PENDING`
+- [ ] `reschedule()` raises `NotFoundError` for missing tasks
+- [ ] `reschedule()` raises `StorageError` on update failures
+- [ ] Retry logic works with your storage backend
+- [ ] Interval tasks reschedule correctly
+- [ ] All existing functionality still works
+
+---
+
+## Logging Migration
+
+This section helps you migrate from standard Python logging back to enhanced Loguru-based logging while maintaining v1 compliance.
 
 ## Overview
 

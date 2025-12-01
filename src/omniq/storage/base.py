@@ -13,6 +13,16 @@ class BaseStorage(ABC):
 
     This interface provides the contract for all storage backends, ensuring consistent
     behavior across different implementations (file, SQLite, Redis, etc.).
+
+    Key Features:
+    - Task persistence and retrieval with proper state management
+    - Atomic dequeue operations with claim semantics
+    - Retry and interval task support through get_task() and reschedule() methods
+    - Result storage and retrieval
+    - Efficient cleanup operations for old results
+
+    All storage backends must implement these methods to ensure compatibility
+    with the AsyncTaskQueue retry and interval scheduling mechanisms.
     """
 
     @abstractmethod
@@ -97,6 +107,22 @@ class BaseStorage(ABC):
         pass
 
     @abstractmethod
+    async def get_task(self, task_id: str) -> Optional[Task]:
+        """
+        Retrieve a task by ID.
+
+        Args:
+            task_id: Unique task identifier
+
+        Returns:
+            Task if found, None otherwise
+
+        Raises:
+            StorageError: If retrieval fails
+        """
+        pass
+
+    @abstractmethod
     async def get_result(self, task_id: str) -> Optional[TaskResult]:
         """
         Retrieve a task result by ID.
@@ -122,20 +148,20 @@ class BaseStorage(ABC):
         """
         pass
 
+    @abstractmethod
     async def reschedule(self, task_id: str, new_eta: datetime) -> None:
         """
-        Update a task's eta for future execution.
+        Update a task's ETA for retry or interval rescheduling.
 
         Args:
-            task_id: ID of the task to reschedule
+            task_id: Unique task identifier
             new_eta: New execution time
 
         Raises:
-            NotImplementedError: If the backend doesn't support rescheduling
-            NotFoundError: If the task doesn't exist
-            StorageError: If the task cannot be rescheduled
+            NotFoundError: If task doesn't exist
+            StorageError: If update fails
         """
-        raise NotImplementedError("This storage backend does not support rescheduling")
+        pass
 
 
 class StorageError(Exception):

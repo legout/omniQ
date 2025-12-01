@@ -139,8 +139,8 @@ class AsyncTaskQueue:
         if task and task.get("schedule", {}).get("interval"):
             await self._reschedule_interval_task(task)
         else:
-            # Fallback: try to get task by ID (not implemented in BaseStorage yet)
-            task_info = await self._get_task_by_id(task_id)
+            # Get task by ID for interval rescheduling
+            task_info = await self.storage.get_task(task_id)
             if task_info and task_info.get("schedule", {}).get("interval"):
                 await self._reschedule_interval_task(task_info)
 
@@ -168,8 +168,8 @@ class AsyncTaskQueue:
             task: Optional task information for retry logic
         """
         if task is None:
-            # Fallback: try to get task by ID (not implemented in BaseStorage yet)
-            task = await self._get_task_by_id(task_id)
+            # Get task by ID for retry logic
+            task = await self.storage.get_task(task_id)
             if task is None:
                 self.logger.warning(f"Task not found for failure: {task_id}")
                 return
@@ -216,7 +216,7 @@ class AsyncTaskQueue:
         Returns:
             Task object or None if not found
         """
-        return await self._get_task_by_id(task_id)
+        return await self.storage.get_task(task_id)
 
     async def get_result(self, task_id: str) -> Optional[TaskResult]:
         """
@@ -229,17 +229,6 @@ class AsyncTaskQueue:
             Task result or None if not available
         """
         return await self.storage.get_result(task_id)
-
-    async def _get_task_by_id(self, task_id: str) -> Optional[Task]:
-        """
-        Helper method to get task by ID.
-
-        This is a placeholder since BaseStorage doesn't have get_task method.
-        In a real implementation, this would be added to BaseStorage.
-        """
-        # For now, we'll work with the task info we have
-        # This would need to be implemented in BaseStorage
-        return None
 
     async def _reschedule_interval_task(self, task: Task) -> None:
         """

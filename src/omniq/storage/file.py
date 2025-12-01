@@ -260,6 +260,28 @@ class FileStorage(BaseStorage):
 
         return count
 
+    async def get_task(self, task_id: str) -> Optional[Task]:
+        """Retrieve a task by ID from any state file."""
+        # Check all possible task file locations in order of preference
+        task_files = [
+            self.queue_dir / f"{task_id}.running",
+            self.queue_dir / f"{task_id}.task",
+            self.queue_dir / f"{task_id}.done",
+        ]
+
+        for task_file in task_files:
+            if task_file.exists():
+                try:
+                    data = task_file.read_bytes()
+                    task = self.serializer.decode_task(data)
+                    return task
+                except Exception as e:
+                    # Skip corrupted files and continue
+                    continue
+
+        # Task not found
+        return None
+
     async def reschedule(self, task_id: str, new_eta: datetime) -> None:
         """Update task eta for future execution."""
         running_file = self.queue_dir / f"{task_id}.running"

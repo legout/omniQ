@@ -109,7 +109,23 @@ async def test_sqlite_storage():
             await storage.reschedule(task3_id, future_time)
             print("   Task rescheduled successfully")
 
-            # Test 7: Test purge results
+            # Test 7: Test get_task
+            print("7. Testing get_task...")
+            retrieved_task = await storage.get_task(task3_id)
+            assert retrieved_task is not None, "Should retrieve task by ID"
+            assert retrieved_task["id"] == task3_id, "Task ID should match"
+            assert retrieved_task["func_path"] == "test_module.scheduled_function", (
+                "Function path should match"
+            )
+            print(f"   Retrieved task: {retrieved_task['id']}")
+
+            # Test 8: Test get_task for non-existent task
+            print("8. Testing get_task for non-existent task...")
+            non_existent_task = await storage.get_task("non-existent-id")
+            assert non_existent_task is None, "Should return None for non-existent task"
+            print("   Correctly returned None for non-existent task")
+
+            # Test 9: Test purge results
             print("7. Testing purge_results...")
             from datetime import timedelta
 

@@ -465,6 +465,51 @@ class SQLiteStorage(BaseStorage):
             await conn.rollback()
             raise StorageError(f"Failed to purge results: {e}")
 
+    async def get_task(self, task_id: str) -> Optional[Task]:
+        """Retrieve a task by ID from SQLite database."""
+        conn = await self._get_connection()
+
+        try:
+            cursor = await conn.execute(
+                """
+                SELECT id, func_path, args, kwargs, status, schedule, eta,
+                       max_retries, timeout, attempts, created_at, updated_at, last_attempt_at
+                FROM tasks 
+                WHERE id = ?
+                """,
+                (task_id,),
+            )
+
+            row = await cursor.fetchone()
+            if row is None:
+                return None
+
+            # Convert row to Task
+            schedule = self._deserialize_json(row[5])
+            eta = schedule.get("eta")
+            if eta:
+                schedule["eta"] = self._deserialize_datetime(eta)
+
+            task: Task = {
+                "id": row[0],
+                "func_path": row[1],
+                "args": self._deserialize_json(row[2]),
+                "kwargs": self._deserialize_json(row[3]),
+                "status": TaskStatus(row[4]),
+                "schedule": schedule,
+                "max_retries": row[6],
+                "timeout": row[7],
+                "attempts": row[8],
+                "created_at": self._deserialize_datetime(row[9]),
+                "updated_at": self._deserialize_datetime(row[10]),
+                "last_attempt_at": self._deserialize_datetime(row[11]),
+            }
+
+            return task
+
+        except Exception as e:
+            raise StorageError(f"Failed to retrieve task {task_id}: {e}")
+
     async def reschedule(self, task_id: str, new_eta: datetime) -> None:
         """Update a task's eta for future execution."""
         conn = await self._get_connection()
