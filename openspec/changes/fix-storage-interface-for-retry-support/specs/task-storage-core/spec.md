@@ -3,7 +3,7 @@
 ## ADDED Requirements
 
 ### Requirement: BaseStorage.get_task() Method
-Add abstract `get_task()` method to BaseStorage interface. Storage backends must provide ability to retrieve a task by its unique identifier.
+BaseStorage SHALL include an abstract `get_task()` method. Storage backends MUST provide ability to retrieve a task by its unique identifier.
 
 **Signature**: `async def get_task(self, task_id: str) -> Optional[Task]`
 
@@ -31,7 +31,7 @@ assert task.schedule is not None
 ```
 
 ### Requirement: BaseStorage.reschedule() Method
-Add abstract `reschedule()` method to BaseStorage interface. Storage backends must provide ability to update a task's ETA for retry or interval execution.
+BaseStorage SHALL include an abstract `reschedule()` method. Storage backends MUST provide ability to update a task's ETA for retry or interval execution.
 
 **Signature**: `async def reschedule(self, task_id: str, new_eta: datetime) -> None`
 
@@ -63,10 +63,10 @@ await storage.reschedule("interval-task-101", next_run)
 
 ## MODIFIED Requirements
 
-### AsyncTaskQueue.complete_task() Method
-- **Requirement**: Update complete_task() to use storage.get_task() instead of fallback
-- **Description**: Remove the _get_task_by_id() fallback that always returns None
-- **Impact**: Retry and interval logic will now work correctly with proper task retrieval
+### Requirement: AsyncTaskQueue.complete_task() Method
+AsyncTaskQueue SHALL update complete_task() to use storage.get_task() instead of fallback. The implementation MUST remove the _get_task_by_id() fallback that always returns None.
+
+**Impact**: Retry and interval logic will now work correctly with proper task retrieval
 
 #### Scenario: Task Completion with Retry Logic
 ```python
@@ -85,10 +85,10 @@ await queue.complete_task("task-123", result="success", task=task)
 # Should use provided task object without additional storage call
 ```
 
-### Storage Backend Implementations
-- **Requirement**: All storage backends must implement the new abstract methods
-- **Description**: FileStorage and SQLiteStorage need concrete implementations
-- **Impact**: Ensures consistent behavior across all storage backends
+### Requirement: Storage Backend Implementations
+All storage backends MUST implement the new abstract methods. FileStorage and SQLiteStorage SHALL provide concrete implementations.
+
+**Impact**: Ensures consistent behavior across all storage backends
 
 #### Scenario: FileStorage Implementation
 ```python
@@ -108,10 +108,10 @@ await storage.reschedule("sqlite-task-1", datetime.now(timezone.utc))
 
 ## REMOVED Requirements
 
-### AsyncTaskQueue._get_task_by_id() Fallback Method
-- **Requirement**: Remove the fallback method that always returns None
-- **Description**: This method was a workaround that broke retry functionality
-- **Impact**: AsyncTaskQueue will now properly use storage interface methods
+### Requirement: AsyncTaskQueue._get_task_by_id() Fallback Method
+Remove the fallback method that always returns None. This method was a workaround that broke retry functionality.
+
+**Impact**: AsyncTaskQueue will now properly use storage interface methods
 
 #### Scenario: Fallback Removal
 ```python

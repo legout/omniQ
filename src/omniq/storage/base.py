@@ -125,7 +125,7 @@ class BaseStorage(ABC):
     @abstractmethod
     async def reschedule(self, task_id: str, new_eta: datetime) -> None:
         """
-        Update a task's ETA for future execution.
+        Update a task's ETA for retry or interval rescheduling.
 
         Args:
             task_id: Unique task identifier
@@ -160,21 +160,6 @@ class BaseStorage(ABC):
 
         Returns:
             Count of results that were purged
-        """
-        pass
-
-    @abstractmethod
-    async def reschedule(self, task_id: str, new_eta: datetime) -> None:
-        """
-        Update a task's ETA for retry or interval rescheduling.
-
-        Args:
-            task_id: Unique task identifier
-            new_eta: New execution time
-
-        Raises:
-            NotFoundError: If task doesn't exist
-            StorageError: If update fails
         """
         pass
 
