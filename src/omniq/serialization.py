@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import timedelta
 from typing import Any, Protocol
 
-from .models import Task, TaskResult
+from .models import Task, TaskResult, TaskError
 
 
 def serialize_timedelta(td: timedelta) -> dict:
@@ -16,6 +16,18 @@ def deserialize_timedelta(data: dict) -> timedelta:
     if data.get("type") == "timedelta":
         return timedelta(seconds=data["total_seconds"])
     raise ValueError("Invalid timedelta data")
+
+
+def serialize_task_error(error: TaskError) -> dict:
+    """Serialize a TaskError to a dictionary for JSON serialization."""
+    return error.to_dict()
+
+
+def deserialize_task_error(data: dict) -> TaskError:
+    """Deserialize a TaskError from a dictionary."""
+    if not data:
+        return None
+    return TaskError.from_dict(data)
 
 
 class Serializer(Protocol):
@@ -156,6 +168,9 @@ class JSONSerializer:
                 return obj.isoformat()
             elif isinstance(obj, timedelta):
                 return serialize_timedelta(obj)
+            elif hasattr(obj, "to_dict") and callable(getattr(obj, "to_dict")):
+                # Handle TaskError and other objects with to_dict method
+                return obj.to_dict()
             raise TypeError(
                 f"Object of type {type(obj).__name__} is not JSON serializable"
             )
@@ -164,6 +179,9 @@ class JSONSerializer:
             # Check if this is a timedelta serialization
             if d.get("type") == "timedelta" and "total_seconds" in d:
                 return deserialize_timedelta(d)
+            # Check if this is a TaskError serialization
+            elif "error_type" in d and "message" in d and "timestamp" in d:
+                return deserialize_task_error(d)
             return d
 
         self._datetime_converter = datetime_converter

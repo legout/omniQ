@@ -7,7 +7,7 @@ This guide helps you migrate OmniQ components while maintaining backward compati
 1. [Storage Interface Migration](#storage-interface-migration)
 2. [Logging Migration](#logging-migration)
 3. [Task Interval Type Migration](#task-interval-type-migration)
-
+4. [TaskError Model Migration](#taskerror-migration)
 ---
 
 ## Storage Interface Migration
@@ -789,3 +789,296 @@ if __name__ == "__main__":
 ```
 
 This migration provides better type safety and expressiveness while maintaining full backward compatibility with existing code.
+
+---
+
+## TaskError Model Migration
+
+This section covers the addition of the `TaskError` model for structured error handling and v1 compliance.
+
+### Overview
+
+The TaskError model provides comprehensive error information for failed tasks, including error categorization, retry logic, and debugging context. This replaces ad-hoc error string handling with a structured approach.
+
+### What Changed
+
+- **New TaskError Model**: Added comprehensive error model with fields for error type, message, timestamp, traceback, retry information, and context
+- **Task Model Enhancement**: Added optional `error` field to Task model for structured error storage
+- **Enhanced Error Handling**: Worker and core components now use TaskError for consistent error management
+- **Storage Serialization**: All storage backends support TaskError serialization/deserialization
+- **Backward Compatibility**: Existing tasks without errors continue to work (error field defaults to None)
+
+### Migration Steps
+
+#### 1. Update Task Creation
+**Before (error strings):**
+```python
+# Old way - still works for backward compatibility
+task_id = await omniq.enqueue("my_module.function", args=[data])
+# Error handling in worker used strings
+```
+
+**After (TaskError - recommended):**
+```python
+from omniq.models import TaskError, ErrorType
+
+# In your Task function
+async def my_function(data):
+    try:
+        result = await process_data(data)
+        return result
+    except Exception as e:
+        # Create structured error
+        error = TaskError.from_exception(
+            exception=e,
+            error_type=ErrorType.VALIDATION.value,
+            is_retryable=False,
+            context={"data_size": len(data)}
+        )
+        # Error will be automatically captured by worker
+        raise
+```
+
+#### 2. Error Handling in Workers
+**New TaskError-aware error handling:**
+```python
+from omniq.models import TaskError, has_error, is_failed, get_error_message
+
+# Worker automatically creates TaskError from exceptions
+# No changes needed in user code for basic error handling
+
+# For custom error handling
+error = TaskError(
+    error_type="timeout",
+    message="Operation timed out",
+    is_retryable=True,
+    max_retries=3,
+    context={"timeout": 30}
+)
+```
+
+#### 3. Task Error Checking
+**New helper methods available:**
+```python
+from omniq.models import has_error, is_failed, get_error_message
+
+task = await omniq.get_task(task_id)
+
+# Check if task has error
+if has_error(task):
+    error = task["error"]
+    print(f"Error type: {error.error_type}")
+    print(f"Can retry: {error.can_retry()}")
+
+# Check if task is failed
+if is_failed(task):
+    print("Task is in failed state")
+
+# Get error message safely
+error_msg = get_error_message(task)
+if error_msg:
+    print(f"Task failed: {error_msg}")
+```
+
+#### 4. Storage and Serialization
+**Automatic TaskError handling:**
+- All storage backends automatically serialize/deserialize TaskError
+- No changes needed for existing code
+- Backward compatibility maintained for tasks without errors
+
+**Manual TaskError creation:**
+```python
+from omniq.models import TaskError, create_task
+
+# Create task with error
+error = TaskError(
+    error_type="business",
+    message="Invalid business logic",
+    is_retryable=False,
+    context={"rule": "validation_failed"}
+)
+
+task = create_task(
+    func_path="my_module.function",
+    args=[data],
+    error=error  # Attach error to task
+)
+```
+
+### Backward Compatibility
+
+- **Existing Tasks**: Tasks without `error` field continue to work (defaults to None)
+- **Error Strings**: Old string-based error handling still supported
+- **Storage**: Existing serialized tasks deserialize without errors
+- **API**: All existing code continues to work unchanged
+
+### New TaskError Features
+
+#### Error Classification
+```python
+from omniq.models import TaskError, ErrorType
+
+# Standard error types
+error = TaskError(
+    error_type=ErrorType.TIMEOUT.value,  # "timeout"
+    message="Task exceeded 30 second limit",
+    is_retryable=True
+)
+
+# Auto-categorization
+# error_type="timeout" → category="system"
+# error_type="validation" → category="user"
+# error_type="runtime" → category="application"
+```
+
+#### Retry Logic
+```python
+# Check if error can be retried
+if error.can_retry():
+    print("Task will be retried")
+else:
+    print("Task is permanently failed")
+
+# Increment retry count
+next_error = error.increment_retry()
+print(f"Retry attempt: {next_error.retry_count}")
+```
+
+#### Context and Debugging
+```python
+# Rich error context
+error = TaskError(
+    error_type="resource",
+    message="Database connection failed",
+    context={
+        "database": "postgres",
+        "host": "db.example.com",
+        "query": "SELECT * FROM users",
+        "connection_pool_size": 10
+    }
+)
+
+# Exception details automatically captured
+error = TaskError.from_exception(
+    exception=db_exception,
+    context={"operation": "user_lookup"}
+)
+# Includes traceback, exception_type, timestamp
+```
+
+### Validation Checklist
+
+- [ ] TaskError model creation works with all fields
+- [ ] TaskError.from_exception() captures exception details
+- [ ] TaskError serialization/deserialization roundtrip works
+- [ ] Storage backends handle TaskError correctly
+- [ ] Worker creates TaskError on exceptions
+- [ ] Helper functions (has_error, is_failed, get_error_message) work
+- [ ] Backward compatibility maintained for tasks without errors
+- [ ] Error categorization works automatically
+- [ ] Retry logic functions correctly with TaskError
+- [ ] Context information preserved in storage
+- [ ] Performance requirements met (<1ms creation, <1ms serialization)
+- [ ] Type safety maintained with proper annotations
+
+### Benefits of Migration
+
+1. **Structured Error Handling**: Consistent error format across all components
+2. **Enhanced Debugging**: Rich context information for troubleshooting
+3. **Smart Retry Logic**: Automatic retry decisions based on error type and count
+4. **Error Analytics**: Categorized errors for monitoring and analysis
+5. **Type Safety**: Full type annotations and validation
+6. **Backward Compatibility**: Zero breaking changes for existing code
+7. **Production Ready**: Comprehensive error information for operations
+
+### Troubleshooting
+
+#### Common Issues
+
+1. **TaskError Not Found**: 
+   - Cause: Task created before TaskError implementation
+   - Fix: Tasks automatically get error=None, no action needed
+
+2. **Serialization Errors**:
+   - Cause: Custom serializer not handling TaskError
+   - Fix: Use built-in serializers or add TaskError.to_dict() support
+
+3. **Type Errors**:
+   - Cause: Passing error string instead of TaskError
+   - Fix: Use TaskError.from_exception() or create TaskError objects
+
+#### Performance Considerations
+
+- **TaskError Creation**: <1ms average, includes exception processing
+- **Serialization**: <1ms average, uses efficient JSON conversion
+- **Storage Overhead**: Minimal, only stored when tasks fail
+- **Memory Usage**: Similar to existing task objects
+
+### Complete Example
+
+```python
+import asyncio
+from datetime import timedelta
+from omniq import AsyncOmniQ
+from omniq.models import TaskError, ErrorType
+
+async def process_with_comprehensive_errors(data):
+    """Example function with comprehensive error handling."""
+    try:
+        # Simulate different error conditions
+        if not data:
+            raise ValueError("Data cannot be empty")
+        
+        if len(data) > 1000:
+            raise TimeoutError("Data too large to process")
+            
+        # Simulate processing
+        await asyncio.sleep(0.1)
+        return {"processed": len(data)}
+        
+    except ValueError as e:
+        # Non-retryable validation error
+        raise TaskError.from_exception(
+            e,
+            error_type=ErrorType.VALIDATION.value,
+            is_retryable=False,
+            context={"data_length": len(data) if data else 0}
+        )
+        
+    except TimeoutError as e:
+        # Retryable timeout error
+        raise TaskError.from_exception(
+            e,
+            error_type=ErrorType.TIMEOUT.value,
+            is_retryable=True,
+            max_retries=3,
+            context={"data_length": len(data) if data else 0}
+        )
+
+async def main():
+    omniq = AsyncOmniQ()
+    
+    # Enqueue task that might fail
+    task_id = await omniq.enqueue(
+        process_with_comprehensive_errors,
+        args=[{"large_data": "x" * 2000}],  # Will cause timeout
+        max_retries=3
+    )
+    
+    # Process with worker
+    async with omniq.worker_pool() as workers:
+        await workers.process_tasks(limit=10)
+    
+    # Check result
+    result = await omniq.get_result(task_id, wait=True)
+    if result and result.get("error"):
+        error = result["error"]
+        print(f"Final error: {error.error_type}")
+        print(f"Error message: {error.message}")
+        print(f"Context: {error.context}")
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+This migration provides comprehensive error handling while maintaining full backward compatibility and adding powerful new debugging and monitoring capabilities.

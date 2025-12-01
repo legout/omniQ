@@ -7,7 +7,7 @@ These tasks implement the missing `TaskError` model and standardize error handli
 ## Task Dependencies
 
 ```
-Task 1 (Foundation) → Task 2 → Task 3 → Task 4 → Task 5 (Testing)
+Task 1 (Foundation) → Task 2 → Task 3 → Task 4 → Task 5 (Testing) → Task 6 (Documentation)
 ```
 
 ## Tasks
@@ -25,10 +25,10 @@ Task 1 (Foundation) → Task 2 → Task 3 → Task 4 → Task 5 (Testing)
 5. Add __post_init__ method for timestamp defaults
 
 **Acceptance Criteria**:
-- [ ] TaskError model implemented with all required fields
-- [ ] Type hints match existing codebase patterns
-- [ ] Basic validation in place
-- [ ] Model follows existing dataclass patterns
+- [x] TaskError model implemented with all required fields
+- [x] Type hints match existing codebase patterns
+- [x] Basic validation in place
+- [x] Model follows existing dataclass patterns
 
 ### Task 2: Update Task Model with Error Field
 **Priority**: HIGH  
@@ -42,9 +42,9 @@ Task 1 (Foundation) → Task 2 → Task 3 → Task 4 → Task 5 (Testing)
 4. Update any Task constructors to handle error field
 
 **Acceptance Criteria**:
-- [ ] Task model has error field with proper default
-- [ ] Backward compatibility maintained
-- [ ] No breaking changes to existing Task usage
+- [x] Task model has error field with proper default
+- [x] Backward compatibility maintained
+- [x] No breaking changes to existing Task usage
 
 ### Task 3: Update Worker Error Handling
 **Priority**: MEDIUM  
@@ -59,10 +59,10 @@ Task 1 (Foundation) → Task 2 → Task 3 → Task 4 → Task 5 (Testing)
 5. Update logging to use TaskError information
 
 **Acceptance Criteria**:
-- [ ] Worker creates TaskError objects on failures
-- [ ] Retry logic uses TaskError.retry_count
-- [ ] Error categorization implemented
-- [ ] Logging uses TaskError context
+- [x] Worker creates TaskError objects on failures
+- [x] Retry logic uses TaskError.retry_count
+- [x] Error categorization implemented
+- [x] Logging uses TaskError context
 
 ### Task 4: Update Core Error Handling
 **Priority**: MEDIUM  
@@ -76,9 +76,10 @@ Task 1 (Foundation) → Task 2 → Task 3 → Task 4 → Task 5 (Testing)
 4. Update any error validation logic
 
 **Acceptance Criteria**:
-- [ ] Core properly handles TaskError in task results
-- [ ] Status transitions work with error states
-- [ ] Error propagation implemented correctly
+- [x] Core properly handles TaskError in task results
+- [x] Status transitions work with error states
+- [x] Error propagation implemented correctly
+- [x] No breaking changes to existing API
 
 ### Task 5: Update Storage Error Serialization
 **Priority**: MEDIUM  
@@ -93,10 +94,10 @@ Task 1 (Foundation) → Task 2 → Task 3 → Task 4 → Task 5 (Testing)
 5. Handle backward compatibility for old tasks without errors
 
 **Acceptance Criteria**:
-- [ ] File storage properly serializes TaskError
-- [ ] SQLite storage handles TaskError field
-- [ ] Backward compatibility maintained
-- [ ] Error serialization roundtrip works
+- [x] File storage properly serializes TaskError
+- [x] SQLite storage handles TaskError field
+- [x] Backward compatibility maintained
+- [x] Error serialization roundtrip works
 
 ### Task 6: Add Comprehensive Tests
 **Priority**: MEDIUM  
@@ -112,12 +113,12 @@ Task 1 (Foundation) → Task 2 → Task 3 → Task 4 → Task 5 (Testing)
 6. Add integration tests for end-to-end error flow
 
 **Acceptance Criteria**:
-- [ ] TaskError model fully tested
-- [ ] Worker error handling tested
-- [ ] Core error handling tested
-- [ ] Storage serialization tested
-- [ ] Backward compatibility verified
-- [ ] Integration tests pass
+- [x] TaskError model fully tested
+- [x] Worker error handling tested
+- [x] Core error handling tested
+- [x] Storage serialization tested
+- [x] Backward compatibility verified
+- [x] Integration tests pass
 
 ### Task 7: Update Documentation
 **Priority**: LOW  
@@ -131,10 +132,10 @@ Task 1 (Foundation) → Task 2 → Task 3 → Task 4 → Task 5 (Testing)
 4. Add TaskError to changelog
 
 **Acceptance Criteria**:
-- [ ] Documentation updated for TaskError
-- [ ] Examples provided for error handling
-- [ ] Migration guide updated
-- [ ] Changelog updated
+- [x] Documentation updated for TaskError
+- [x] Examples provided for error handling
+- [x] Migration guide updated
+- [x] Changelog updated
 
 ## Testing Strategy
 
@@ -160,6 +161,7 @@ If issues arise:
 2. Remove TaskError model
 3. Restore previous error handling in worker/core
 4. Undo storage serialization changes
+5. Undo queue parameter handling fix
 
 ## Success Metrics
 

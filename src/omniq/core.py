@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from typing import Any, Callable, Optional, Union
 
 from .config import Settings
-from .models import Task, TaskResult, create_task
+from .models import Task, TaskResult, TaskError, create_task
 from .storage.base import BaseStorage
 from .storage.file import FileStorage
 from .storage.sqlite import SQLiteStorage

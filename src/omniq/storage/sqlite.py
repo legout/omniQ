@@ -70,7 +70,8 @@ class SQLiteStorage(BaseStorage):
                 attempts INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL,  -- ISO datetime
                 updated_at TEXT NOT NULL,  -- ISO datetime
-                last_attempt_at TEXT  -- ISO datetime
+                last_attempt_at TEXT,  -- ISO datetime
+                error TEXT  -- JSON encoded TaskError
             )
         """)
 
@@ -87,6 +88,15 @@ class SQLiteStorage(BaseStorage):
                 FOREIGN KEY (task_id) REFERENCES tasks (id) ON DELETE CASCADE
             )
         """)
+
+        # Add error field to existing tasks table (migration)
+        try:
+            await conn.execute("""
+                ALTER TABLE tasks ADD COLUMN error TEXT  -- JSON encoded TaskError
+            """)
+        except Exception:
+            # Column already exists, ignore
+            pass
 
         # Create indexes for efficient dequeue
         await conn.execute("""
@@ -155,28 +165,33 @@ class SQLiteStorage(BaseStorage):
 
                 schedule["interval"] = serialize_timedelta(interval)
 
+            values = [
+                task["id"],
+                task["func_path"],
+                self._serialize_json(task["args"]),
+                self._serialize_json(task["kwargs"]),
+                task["status"].value,
+                self._serialize_json(schedule),
+                eta_str,
+                task["max_retries"],
+                task["timeout"],
+                task["attempts"],
+                self._serialize_datetime(task["created_at"]),
+                self._serialize_datetime(task["updated_at"]),
+                self._serialize_datetime(task["last_attempt_at"]),
+                self._serialize_json(
+                    task.get("error").to_dict() if task.get("error") else None
+                ),
+            ]
+
             await conn.execute(
                 """
-                INSERT INTO tasks (
-                    id, func_path, args, kwargs, status, schedule, eta,
-                    max_retries, timeout, attempts, created_at, updated_at, last_attempt_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-                (
-                    task["id"],
-                    task["func_path"],
-                    self._serialize_json(task["args"]),
-                    self._serialize_json(task["kwargs"]),
-                    task["status"].value,
-                    self._serialize_json(schedule),
-                    eta_str,
-                    task["max_retries"],
-                    task["timeout"],
-                    task["attempts"],
-                    self._serialize_datetime(task["created_at"]),
-                    self._serialize_datetime(task["updated_at"]),
-                    self._serialize_datetime(task["last_attempt_at"]),
-                ),
+                    INSERT INTO tasks (
+                        id, func_path, args, kwargs, status, schedule, eta,
+                        max_retries, timeout, attempts, created_at, updated_at, last_attempt_at, error
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                values,
             )
 
             await conn.commit()
@@ -199,7 +214,7 @@ class SQLiteStorage(BaseStorage):
             cursor = await conn.execute(
                 """
                 SELECT id, func_path, args, kwargs, status, schedule,
-                       max_retries, timeout, attempts, created_at, updated_at, last_attempt_at
+                       max_retries, timeout, attempts, created_at, updated_at, last_attempt_at, error
                 FROM tasks 
                 WHERE status = 'PENDING' 
                 AND (eta IS NULL OR eta <= ?)
@@ -250,13 +265,19 @@ class SQLiteStorage(BaseStorage):
                 "kwargs": self._deserialize_json(row[3]),
                 "status": TaskStatus(row[4]),
                 "schedule": schedule,
-                "max_retries": row[6],
-                "timeout": row[7],
-                "attempts": row[8],
-                "created_at": self._deserialize_datetime(row[9]),
-                "updated_at": self._deserialize_datetime(row[10]),
-                "last_attempt_at": self._deserialize_datetime(row[11]),
+                "max_retries": row[7],
+                "timeout": row[8],
+                "attempts": row[9],
+                "created_at": self._deserialize_datetime(row[10]),
+                "updated_at": self._deserialize_datetime(row[11]),
+                "last_attempt_at": self._deserialize_datetime(row[12]),
             }
+
+            # Add error field if present
+            if len(row) > 13 and row[13] is not None:
+                from ..serialization import deserialize_task_error
+
+                task["error"] = deserialize_task_error(self._deserialize_json(row[13]))
 
             # Update attempts and last_attempt_at for RUNNING status
             # Don't increment attempts if this is a retry (attempts > 0)
@@ -393,8 +414,7 @@ class SQLiteStorage(BaseStorage):
 
             current_attempts = row[0] if row[0] is not None else 0
             attempts = current_attempts + 1  # Increment for this attempt
-            print(
-            )
+            print()
             last_attempt_at = now
 
             # Create failure result
@@ -511,10 +531,10 @@ class SQLiteStorage(BaseStorage):
         try:
             cursor = await conn.execute(
                 """
-                SELECT id, func_path, args, kwargs, status, schedule, eta,
-                       max_retries, timeout, attempts, created_at, updated_at, last_attempt_at
-                FROM tasks 
-                WHERE id = ?
+                    SELECT id, func_path, args, kwargs, status, schedule, eta,
+                           max_retries, timeout, attempts, created_at, updated_at, last_attempt_at, error
+                    FROM tasks 
+                    WHERE id = ?
                 """,
                 (task_id,),
             )
@@ -547,13 +567,19 @@ class SQLiteStorage(BaseStorage):
                 "kwargs": self._deserialize_json(row[3]),
                 "status": TaskStatus(row[4]),
                 "schedule": schedule,
-                "max_retries": row[6],
-                "timeout": row[7],
-                "attempts": row[8],
-                "created_at": self._deserialize_datetime(row[9]),
-                "updated_at": self._deserialize_datetime(row[10]),
-                "last_attempt_at": self._deserialize_datetime(row[11]),
+                "max_retries": row[7],
+                "timeout": row[8],
+                "attempts": row[9],
+                "created_at": self._deserialize_datetime(row[10]),
+                "updated_at": self._deserialize_datetime(row[11]),
+                "last_attempt_at": self._deserialize_datetime(row[12]),
             }
+
+            # Add error field if present
+            if len(row) > 13 and row[13] is not None:
+                from ..serialization import deserialize_task_error
+
+                task["error"] = deserialize_task_error(self._deserialize_json(row[13]))
 
             return task
 

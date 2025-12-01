@@ -105,9 +105,16 @@ class AsyncTaskQueue:
             kwargs=kwargs,
             eta=eta,
             interval=converted_interval,
-            max_retries=max_retries or 3,  # Default to 3 if None
+            max_retries=3
+            if max_retries is None
+            else max_retries,  # Default to 3 if None
             timeout=timeout,
             task_id=task_id,
+        )
+
+        # Debug: check created task
+        print(
+            f"Debug queue.enqueue: created task max_retries = {task.get('max_retries')}"
         )
 
         # Store task

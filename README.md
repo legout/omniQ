@@ -182,6 +182,49 @@ task_id = await omniq.enqueue(
 )
 ```
 
+### Task Error Handling
+
+OmniQ provides comprehensive error handling with the `TaskError` model:
+
+```python
+from omniq.models import TaskError, TaskStatus
+
+# Creating TaskError from exception
+try:
+    result = await some_operation()
+except Exception as e:
+    error = TaskError.from_exception(
+        exception=e,
+        error_type="runtime",
+        is_retryable=True,
+        context={"operation": "data_processing"}
+    )
+    # Error will be stored with task and used for retry logic
+
+# Checking task errors
+task = await omniq.get_task(task_id)
+if task.get("error"):
+    error = task["error"]
+    print(f"Error type: {error.error_type}")
+    print(f"Error message: {error.message}")
+    print(f"Can retry: {error.can_retry()}")
+    print(f"Retry count: {error.retry_count}")
+
+# Task error helper methods
+from omniq.models import has_error, is_failed, get_error_message
+
+if has_error(task):
+    print(f"Task has error: {get_error_message(task)}")
+
+if is_failed(task):
+    print("Task is in failed state")
+
+# TaskError retry logic
+if error.can_retry():
+    next_error = error.increment_retry()
+    # Use next_error for retry attempt
+```
+
 ### Interval Tasks
 
 Interval tasks are repeating tasks that run automatically at specified intervals:

@@ -11,6 +11,7 @@ from .models import (
     Task,
     TaskResult,
     TaskStatus,
+    TaskError,
     create_success_result,
     create_failure_result,
     has_interval,
@@ -224,10 +225,26 @@ class AsyncWorkerPool:
         """
         task_id = task["id"]
         attempts = task["attempts"] + 1
-        error_msg = f"{type(error).__name__}: {error}"
+
+        # Create TaskError from exception
+        task_error = TaskError.from_exception(
+            exception=error,
+            error_type=self._categorize_error(error),
+            is_retryable=should_retry(task),
+            context={
+                "task_id": task_id,
+                "func_path": task["func_path"],
+                "attempts": attempts,
+            },
+        )
+
+        # Update retry count
+        task_error.retry_count = (
+            attempts - 1
+        )  # attempts is after increment, so subtract 1
 
         # Determine if should retry
-        will_retry = should_retry(task)
+        will_retry = task_error.can_retry() and should_retry(task)
 
         if will_retry:
             # Calculate backoff delay
@@ -239,16 +256,19 @@ class AsyncWorkerPool:
 
             # Reschedule for retry - let AsyncTaskQueue handle this
             await self.queue.fail_task(
-                task_id, error_msg, exception_type=type(error).__name__, task=task
+                task_id,
+                task_error.message,
+                exception_type=task_error.exception_type,
+                task=task,
             )
         else:
             # Final failure
-            log_task_failed(task_id, error_msg, will_retry=False)
+            log_task_failed(task_id, task_error.message, will_retry=False)
 
             # Create failure result
             task_result = create_failure_result(
                 task_id=task_id,
-                error=error_msg,
+                error=task_error.message,
                 attempts=attempts,
                 last_attempt_at=datetime.now(timezone.utc),
             )
@@ -271,6 +291,35 @@ class AsyncWorkerPool:
 
         # Interval task rescheduling is handled by AsyncTaskQueue
         # No additional action needed
+
+    def _categorize_error(self, error: Exception) -> str:
+        """
+        Categorize error based on exception type.
+
+        Args:
+            error: The exception to categorize
+
+        Returns:
+            Error type string
+        """
+        error_type_mapping = {
+            "TimeoutError": "timeout",
+            "asyncio.TimeoutError": "timeout",
+            "ValueError": "validation",
+            "TypeError": "validation",
+            "KeyError": "validation",
+            "AttributeError": "validation",
+            "ImportError": "system",
+            "FileNotFoundError": "resource",
+            "PermissionError": "resource",
+            "ConnectionError": "network",
+            "OSError": "system",
+            "RuntimeError": "runtime",
+            "Exception": "runtime",
+        }
+
+        exception_name = type(error).__name__
+        return error_type_mapping.get(exception_name, "runtime")
 
     def _calculate_backoff(self, attempt: int) -> float:
         """
