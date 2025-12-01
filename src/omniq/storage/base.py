@@ -123,6 +123,21 @@ class BaseStorage(ABC):
         pass
 
     @abstractmethod
+    async def reschedule(self, task_id: str, new_eta: datetime) -> None:
+        """
+        Update a task's ETA for future execution.
+
+        Args:
+            task_id: Unique task identifier
+            new_eta: New execution time
+
+        Raises:
+            NotFoundError: If task doesn't exist
+            StorageError: If update fails
+        """
+        pass
+
+    @abstractmethod
     async def get_result(self, task_id: str) -> Optional[TaskResult]:
         """
         Retrieve a task result by ID.

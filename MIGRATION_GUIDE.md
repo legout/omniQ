@@ -6,6 +6,7 @@ This guide helps you migrate OmniQ components while maintaining backward compati
 
 1. [Storage Interface Migration](#storage-interface-migration)
 2. [Logging Migration](#logging-migration)
+3. [Task Interval Type Migration](#task-interval-type-migration)
 
 ---
 
@@ -553,3 +554,238 @@ The migration to enhanced Loguru logging provides:
 5. **Performance**: Async logging with <5% overhead
 
 The migration adds powerful features while maintaining simplicity and backward compatibility.
+
+---
+
+## Task Interval Type Migration
+
+This section covers the migration from `int` to `timedelta` for task interval fields to achieve v1 spec compliance.
+
+### Overview
+
+The Task model's `interval` field has been updated from `int` (seconds) to `timedelta | None` to comply with the v1 specification. This change provides better type safety and more expressive interval definitions while maintaining backward compatibility.
+
+### What Changed
+
+- **Field Type**: `interval: int = 0` → `interval: timedelta | None = None`
+- **Location**: Interval field moved from task level to `schedule.interval`
+- **Backward Compatibility**: `int` values are automatically converted to `timedelta(seconds=int)`
+- **Serialization**: Enhanced serialization supports `timedelta` objects
+- **API**: All APIs accept both `timedelta` and `int` for intervals
+
+### Migration Steps
+
+#### 1. Update Task Creation (Recommended)
+
+**Before (int seconds):**
+```python
+# Old way - still works for backward compatibility
+task_id = await omniq.enqueue(
+    "my_module.cleanup_task",
+    interval=3600  # int seconds
+)
+```
+
+**After (timedelta - recommended):**
+```python
+from datetime import timedelta
+
+# New way - preferred approach
+task_id = await omniq.enqueue(
+    "my_module.cleanup_task",
+    interval=timedelta(hours=1)  # More readable
+)
+
+# Complex intervals
+task_id = await omniq.enqueue(
+    "my_module.complex_task",
+    interval=timedelta(days=1, hours=2, minutes=30)
+)
+```
+
+#### 2. Update Task Model Usage
+
+**Before:**
+```python
+# Direct int access
+interval_seconds = task["interval"]
+if interval_seconds > 0:
+    # Handle interval task
+```
+
+**After:**
+```python
+# Access through schedule
+interval = task["schedule"].get("interval")
+if interval is not None:
+    # interval is now a timedelta object
+    interval_seconds = interval.total_seconds()
+    # Handle interval task
+```
+
+#### 3. Update Serialization Code
+
+If you have custom serialization, update it to handle `timedelta`:
+
+```python
+from omniq.serialization import serialize_timedelta, deserialize_timedelta
+
+# Serialize timedelta
+interval = timedelta(hours=1)
+serialized = serialize_timedelta(interval)
+# Result: {"type": "timedelta", "total_seconds": 3600.0}
+
+# Deserialize timedelta
+deserialized = deserialize_timedelta(serialized)
+# Result: timedelta(hours=1)
+```
+
+### Backward Compatibility
+
+All existing code continues to work without changes:
+
+```python
+# These all still work exactly as before
+await omniq.enqueue("task", interval=60)  # int seconds
+await omniq.enqueue("task", interval=timedelta(minutes=1))  # timedelta
+```
+
+### Benefits of Migration
+
+1. **Type Safety**: `timedelta` provides better type checking
+2. **Expressiveness**: More readable interval definitions
+3. **Flexibility**: Support for complex intervals (days, hours, minutes, seconds)
+4. **Spec Compliance**: Meets v1 specification requirements
+5. **Future-Proof**: Extensible for additional time-based features
+
+### Code Examples
+
+#### Creating Different Interval Types
+
+```python
+from datetime import timedelta
+
+# Simple intervals
+await omniq.enqueue("task", interval=timedelta(seconds=30))
+await omniq.enqueue("task", interval=timedelta(minutes=5))
+await omniq.enqueue("task", interval=timedelta(hours=1))
+await omniq.enqueue("task", interval=timedelta(days=1))
+
+# Complex intervals
+await omniq.enqueue("task", interval=timedelta(days=1, hours=2))
+await omniq.enqueue("task", interval=timedelta(hours=1, minutes=30, seconds=45))
+
+# Backward compatibility
+await omniq.enqueue("task", interval=3600)  # Automatically converted to timedelta(seconds=3600)
+```
+
+#### Working with Interval Tasks
+
+```python
+# Get task with interval
+task = await omniq.get_task(task_id)
+interval = task["schedule"].get("interval")
+
+if interval:
+    print(f"Task repeats every {interval}")
+    print(f"Interval in seconds: {interval.total_seconds()}")
+    
+    # Calculate next run time
+    from datetime import datetime, timezone
+    next_run = datetime.now(timezone.utc) + interval
+    print(f"Next run: {next_run}")
+```
+
+### Validation Checklist
+
+- [ ] Update task creation to use `timedelta` where possible
+- [ ] Update task model access to use `task["schedule"].get("interval")`
+- [ ] Update serialization code to handle `timedelta` objects
+- [ ] Test backward compatibility with existing `int` intervals
+- [ ] Verify interval tasks reschedule correctly
+- [ ] Update any custom storage backends to handle `timedelta` serialization
+
+### Troubleshooting
+
+#### Common Issues
+
+1. **Type Errors**: Ensure you're importing `timedelta` from `datetime`
+2. **Access Errors**: Use `task["schedule"].get("interval")` instead of `task["interval"]`
+3. **Serialization**: Use provided `serialize_timedelta()` and `deserialize_timedelta()` functions
+
+#### Getting Help
+
+```python
+# Test interval conversion
+from datetime import timedelta
+from src.omniq.queue import AsyncTaskQueue
+
+queue = AsyncTaskQueue(storage)
+
+# Test conversion utilities
+td = queue._convert_interval(timedelta(hours=1))
+assert td == timedelta(hours=1)
+
+int_converted = queue._convert_interval(3600)
+assert int_converted == timedelta(seconds=3600)
+```
+
+### Performance Considerations
+
+- **Conversion Overhead**: Minimal overhead for int → timedelta conversion
+- **Memory**: `timedelta` objects have similar memory footprint to ints
+- **Serialization**: Slightly larger serialized size, but more descriptive
+- **Compatibility**: Zero breaking changes for existing code
+
+### Complete Migration Example
+
+```python
+import asyncio
+from datetime import datetime, timezone, timedelta
+from omniq import AsyncOmniQ
+from omniq.config import Settings
+
+async def migrate_interval_tasks():
+    """Example of migrating to timedelta intervals."""
+    
+    # Initialize OmniQ
+    settings = Settings(backend="sqlite")
+    omniq = AsyncOmniQ(settings)
+    
+    # Create tasks with new timedelta intervals
+    cleanup_task = await omniq.enqueue(
+        "maintenance.cleanup",
+        interval=timedelta(hours=6)  # Every 6 hours
+    )
+    
+    backup_task = await omniq.enqueue(
+        "maintenance.backup",
+        interval=timedelta(days=1, hours=2)  # Daily at 2 AM
+    )
+    
+    # Backward compatibility - existing code still works
+    legacy_task = await omniq.enqueue(
+        "legacy.process",
+        interval=1800  # 30 minutes (int seconds)
+    )
+    
+    # Check task intervals
+    for task_id in [cleanup_task, backup_task, legacy_task]:
+        task = await omniq.get_task(task_id)
+        interval = task["schedule"].get("interval")
+        
+        if interval:
+            print(f"Task {task_id}: repeats every {interval}")
+            print(f"  Total seconds: {interval.total_seconds()}")
+            
+            # Calculate next execution
+            next_run = datetime.now(timezone.utc) + interval
+            print(f"  Next run: {next_run.isoformat()}")
+    
+    print("Migration to timedelta intervals completed successfully!")
+
+if __name__ == "__main__":
+    asyncio.run(migrate_interval_tasks())
+```
+
+This migration provides better type safety and expressiveness while maintaining full backward compatibility with existing code.

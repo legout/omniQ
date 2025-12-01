@@ -37,12 +37,12 @@
 - [x] Add error handling tests for invalid intervals
 
 ## Phase 6: Documentation and Migration
-- [ ] Update Task model API documentation
-- [ ] Document interval field type change
-- [ ] Add migration examples for existing code
-- [ ] Update AsyncTaskQueue documentation
-- [ ] Add interval task examples to documentation
-- [ ] Update changelog with breaking change notice
+- [x] Update Task model API documentation
+- [x] Document interval field type change
+- [x] Add migration examples for existing code
+- [x] Update AsyncTaskQueue documentation
+- [x] Add interval task examples to documentation
+- [x] Update changelog with breaking change notice
 
 ## Validation Criteria
 - [x] Task model uses `timedelta | None` for interval field
@@ -51,4 +51,4 @@
 - [x] Backward compatibility maintained for `int` intervals
 - [x] All tests pass with new interval type
 - [x] v1 spec compliance achieved
-- [ ] Documentation updated with examples
+- [x] Documentation updated with examples

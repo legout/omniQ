@@ -7,10 +7,11 @@ A modern, async-first task queue library for Python with support for multiple st
 - **Async-first design**: Built for Python's async/await
 - **Multiple storage backends**: File-based and SQLite storage
 - **Enhanced logging**: Loguru-based logging with correlation IDs and structured output
-- **Task scheduling**: Support for delayed execution with ETA
-- **Retry mechanisms**: Configurable retry policies
+- **Task scheduling**: Support for delayed execution with ETA and interval tasks
+- **Retry mechanisms**: Configurable retry policies with exponential backoff
 - **Worker pools**: Concurrent task execution
 - **Type safety**: Full type annotations throughout
+- **Interval tasks**: Repeating tasks with timedelta or int seconds support
 
 ## Installation
 
@@ -167,7 +168,38 @@ task_id = await omniq.enqueue(
     timeout=30.0,
     eta=datetime.now() + timedelta(minutes=5)  # Delayed execution
 )
+
+# Interval task (repeating)
+task_id = await omniq.enqueue(
+    "my_module.cleanup_task",
+    interval=timedelta(hours=1)  # Run every hour
+)
+
+# Interval task with int seconds (backward compatibility)
+task_id = await omniq.enqueue(
+    "my_module.cleanup_task", 
+    interval=3600  # Run every hour (int seconds)
+)
 ```
+
+### Interval Tasks
+
+Interval tasks are repeating tasks that run automatically at specified intervals:
+
+```python
+from datetime import timedelta
+
+# Create an interval task that runs every 30 minutes
+task_id = await omniq.enqueue(
+    "my_module.maintenance_task",
+    interval=timedelta(minutes=30)
+)
+
+# Interval tasks automatically reschedule after completion
+# Each execution creates a new task with the same interval
+```
+
+**Important**: Interval tasks use `timedelta` objects for the interval field. For backward compatibility, you can also pass integers (seconds), which will be automatically converted to `timedelta`.
 
 ### Task Functions
 
