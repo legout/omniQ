@@ -38,7 +38,9 @@ async def test_interval_task_rescheduling():
             task = await queue.dequeue()
             assert task is not None, "Should have dequeued interval task"
             assert task["id"] == task_id, "Task ID should match"
-            assert task.get("interval") == 60, "Should have interval set"
+            assert task["schedule"].get("interval") == timedelta(seconds=60), (
+                "Should have interval set"
+            )
             print(f"   Dequeued interval task: {task_id}")
 
             # Complete the task (should trigger rescheduling)
@@ -58,7 +60,9 @@ async def test_interval_task_rescheduling():
                 assert next_task["func_path"] == "test_module.interval_function", (
                     "Should have same function"
                 )
-                assert next_task.get("interval") == 60, "Should preserve interval"
+                assert next_task["schedule"].get("interval") == timedelta(seconds=60), (
+                    "Should preserve interval"
+                )
                 assert next_task["id"] != task_id, "Should be a new task ID"
                 print(f"   Rescheduled task: {next_task['id']}")
             else:
@@ -96,7 +100,9 @@ async def test_interval_task_with_task_passed():
             # Get task without dequeuing (simulate having task object)
             task = await queue.get_task(task_id)
             assert task is not None, "Should get task"
-            assert task.get("interval") == 30, "Should have interval"
+            assert task["schedule"].get("interval") == timedelta(seconds=30), (
+                "Should have interval"
+            )
 
             # Complete task with task object passed
             await queue.complete_task(task_id=task_id, result="success", task=task)
@@ -110,7 +116,9 @@ async def test_interval_task_with_task_passed():
                 assert (
                     next_task["func_path"] == "test_module.interval_passed_function"
                 ), "Should have same function"
-                assert next_task.get("interval") == 30, "Should preserve interval"
+                assert next_task["schedule"].get("interval") == timedelta(seconds=30), (
+                    "Should preserve interval"
+                )
                 print("   Task successfully rescheduled")
             else:
                 print("   Task scheduled for future execution (expected)")
@@ -160,7 +168,9 @@ async def test_interval_task_fallback():
                 assert (
                     next_task["func_path"] == "test_module.interval_fallback_function"
                 ), "Should have same function"
-                assert next_task.get("interval") == 45, "Should preserve interval"
+                assert next_task["schedule"].get("interval") == timedelta(seconds=45), (
+                    "Should preserve interval"
+                )
                 print("   Fallback rescheduling worked")
             else:
                 print("   Task scheduled for future execution (expected)")

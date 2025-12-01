@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from enum import Enum
 from typing import Any, Optional
 
@@ -19,7 +19,7 @@ class TaskStatus(str, Enum):
 
 class Schedule(TypedDict):
     eta: NotRequired[Optional[datetime]]
-    interval: NotRequired[Optional[int]]  # seconds
+    interval: NotRequired[Optional[timedelta]]  # time interval
 
 
 class Task(TypedDict):
@@ -99,7 +99,7 @@ def create_task(
     args: list[Any] | None = None,
     kwargs: dict[str, Any] | None = None,
     eta: Optional[datetime] = None,
-    interval: Optional[int] = None,
+    interval: Optional[int | timedelta] = None,
     max_retries: int = 3,
     timeout: Optional[int] = None,
     task_id: Optional[str] = None,
@@ -120,6 +120,9 @@ def create_task(
     if eta is not None:
         schedule["eta"] = eta
     if interval is not None:
+        # Convert int to timedelta for backward compatibility
+        if isinstance(interval, int):
+            interval = timedelta(seconds=interval)
         schedule["interval"] = interval
 
     task: Task = {
@@ -216,4 +219,5 @@ def should_retry(task: Task) -> bool:
 
 def has_interval(task: Task) -> bool:
     """Check if a task has an interval for repeating execution."""
-    return task["schedule"].get("interval") is not None
+    interval = task["schedule"].get("interval")
+    return interval is not None and isinstance(interval, timedelta)

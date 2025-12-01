@@ -1,8 +1,21 @@
 from __future__ import annotations
 
+from datetime import timedelta
 from typing import Any, Protocol
 
 from .models import Task, TaskResult
+
+
+def serialize_timedelta(td: timedelta) -> dict:
+    """Serialize a timedelta to a dictionary for JSON serialization."""
+    return {"type": "timedelta", "total_seconds": td.total_seconds()}
+
+
+def deserialize_timedelta(data: dict) -> timedelta:
+    """Deserialize a timedelta from a dictionary."""
+    if data.get("type") == "timedelta":
+        return timedelta(seconds=data["total_seconds"])
+    raise ValueError("Invalid timedelta data")
 
 
 class Serializer(Protocol):
@@ -141,11 +154,20 @@ class JSONSerializer:
         def datetime_converter(obj):
             if isinstance(obj, datetime):
                 return obj.isoformat()
+            elif isinstance(obj, timedelta):
+                return serialize_timedelta(obj)
             raise TypeError(
                 f"Object of type {type(obj).__name__} is not JSON serializable"
             )
 
+        def datetime_object_hook(d):
+            # Check if this is a timedelta serialization
+            if d.get("type") == "timedelta" and "total_seconds" in d:
+                return deserialize_timedelta(d)
+            return d
+
         self._datetime_converter = datetime_converter
+        self._datetime_object_hook = datetime_object_hook
 
     def encode_task(self, task: Task) -> bytes:
         """Encode a task using JSON."""
@@ -159,7 +181,9 @@ class JSONSerializer:
     def decode_task(self, data: bytes) -> Task:
         """Decode a task using JSON."""
         try:
-            return self._json.loads(data.decode("utf-8"))
+            return self._json.loads(
+                data.decode("utf-8"), object_hook=self._datetime_object_hook
+            )
         except Exception as e:
             raise ValueError(f"Failed to decode task with JSON: {e}")
 
@@ -175,6 +199,8 @@ class JSONSerializer:
     def decode_result(self, data: bytes) -> TaskResult:
         """Decode a result using JSON."""
         try:
-            return self._json.loads(data.decode("utf-8"))
+            return self._json.loads(
+                data.decode("utf-8"), object_hook=self._datetime_object_hook
+            )
         except Exception as e:
             raise ValueError(f"Failed to decode result with JSON: {e}")

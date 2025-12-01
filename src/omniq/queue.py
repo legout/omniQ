@@ -19,6 +19,7 @@ from .models import (
     create_task,
     create_success_result,
     create_failure_result,
+    has_interval,
 )
 from .storage.base import BaseStorage
 from .logging import get_logger
@@ -49,13 +50,27 @@ class AsyncTaskQueue:
         self.storage = storage
         self.logger = get_logger()
 
+    def _convert_interval(self, interval: int | timedelta) -> timedelta:
+        """
+        Convert interval to timedelta for internal use.
+
+        Args:
+            interval: Interval as int (seconds) or timedelta
+
+        Returns:
+            Interval as timedelta
+        """
+        if isinstance(interval, int):
+            return timedelta(seconds=interval)
+        return interval
+
     async def enqueue(
         self,
         func_path: str,
         args: tuple = (),
         kwargs: Optional[dict] = None,
         eta: Optional[datetime] = None,
-        interval: Optional[int] = None,
+        interval: Optional[int | timedelta] = None,
         max_retries: Optional[int] = None,
         timeout: Optional[int] = None,
         task_id: Optional[str] = None,
@@ -68,7 +83,7 @@ class AsyncTaskQueue:
             args: Positional arguments for the function
             kwargs: Keyword arguments for the function
             eta: Scheduled execution time (UTC)
-            interval: Interval in seconds for repeating tasks
+            interval: Interval (timedelta or int seconds) for repeating tasks
             max_retries: Maximum retry attempts
             timeout: Task timeout in seconds
             task_id: Optional custom task ID
@@ -78,13 +93,18 @@ class AsyncTaskQueue:
         """
         kwargs = kwargs or {}
 
+        # Convert interval to timedelta if needed
+        converted_interval = None
+        if interval is not None:
+            converted_interval = self._convert_interval(interval)
+
         # Create task with proper scheduling
         task = create_task(
             func_path=func_path,
             args=list(args),  # Convert tuple to list for model
             kwargs=kwargs,
             eta=eta,
-            interval=interval,
+            interval=converted_interval,
             max_retries=max_retries or 3,  # Default to 3 if None
             timeout=timeout,
             task_id=task_id,
@@ -136,12 +156,12 @@ class AsyncTaskQueue:
         task_result = create_success_result(task_id, result, attempts=1)
 
         # Handle interval task rescheduling
-        if task and task.get("schedule", {}).get("interval"):
+        if task and has_interval(task):
             await self._reschedule_interval_task(task)
         else:
             # Get task by ID for interval rescheduling
             task_info = await self.storage.get_task(task_id)
-            if task_info and task_info.get("schedule", {}).get("interval"):
+            if task_info and has_interval(task_info):
                 await self._reschedule_interval_task(task_info)
 
         # Mark task as done
@@ -237,31 +257,39 @@ class AsyncTaskQueue:
         Args:
             task: Completed interval task
         """
+        # Get interval from schedule
+        interval = task.get("schedule", {}).get("interval")
+        if interval is None:
+            return
+
         # Calculate next execution time
-        next_eta = datetime.now(timezone.utc) + timedelta(
-            seconds=task.get("interval", 0)
-        )
+        next_eta = datetime.now(timezone.utc) + interval
 
         # Create new task instance for next execution
+        max_retries = task.get("max_retries")
+        if max_retries is None:
+            max_retries = 3  # Default fallback
+
         next_task = create_task(
             func_path=task.get("func_path", ""),
             args=task.get("args", []),
             kwargs=task.get("kwargs", {}),
             eta=next_eta,
-            interval=task.get("interval"),
-            max_retries=task.get("max_retries", 3),
+            interval=interval,
+            max_retries=max_retries,
             timeout=task.get("timeout"),
         )
 
         # Enqueue next execution
         await self.storage.enqueue(next_task)
 
+        interval_seconds = interval.total_seconds()
         self.logger.info(
-            f"Interval task rescheduled: {task.get('id')} -> {next_task['id']} in {task.get('interval')}s",
+            f"Interval task rescheduled: {task.get('id')} -> {next_task['id']} in {interval_seconds}s",
             extra={
                 "current_task_id": task.get("id"),
                 "next_task_id": next_task["id"],
-                "interval": task.get("interval"),
+                "interval": interval_seconds,
             },
         )
 
@@ -277,7 +305,7 @@ class AsyncTaskQueue:
             True if task should be retried
         """
         max_retries = task.get("max_retries", 3)
-        return attempts < max_retries
+        return attempts <= max_retries
 
     def _calculate_retry_delay(self, retry_count: int) -> float:
         """

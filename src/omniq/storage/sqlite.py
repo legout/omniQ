@@ -112,9 +112,19 @@ class SQLiteStorage(BaseStorage):
             return None
         return dt.isoformat()
 
-    def _deserialize_datetime(self, dt_str: Optional[str]) -> Optional[datetime]:
+    def _deserialize_datetime(
+        self, dt_str: Optional[str | bytes | int]
+    ) -> Optional[datetime]:
         """Deserialize ISO string to datetime."""
-        if dt_str is None:
+        if dt_str is None or dt_str == 0:
+            return None
+        if isinstance(dt_str, bytes):
+            dt_str = dt_str.decode("utf-8")
+        # Handle case where dt_str might already be a datetime object
+        if isinstance(dt_str, datetime):
+            return dt_str
+        # Handle unexpected types (like 0 for NULL values)
+        if not isinstance(dt_str, str):
             return None
         return datetime.fromisoformat(dt_str)
 
@@ -131,14 +141,19 @@ class SQLiteStorage(BaseStorage):
         conn = await self._get_connection()
 
         try:
-            # Extract eta from schedule and create serializable copy
+            # Extract eta and interval from schedule and create serializable copy
             schedule = task["schedule"].copy()
             eta = schedule.get("eta")
             eta_str = self._serialize_datetime(eta) if eta else None
+            interval = schedule.get("interval")
 
-            # Serialize datetime objects in schedule
+            # Serialize datetime and timedelta objects in schedule
             if eta:
                 schedule["eta"] = eta_str
+            if interval:
+                from ..serialization import serialize_timedelta
+
+                schedule["interval"] = serialize_timedelta(interval)
 
             await conn.execute(
                 """
@@ -217,6 +232,17 @@ class SQLiteStorage(BaseStorage):
             if eta:
                 schedule["eta"] = self._deserialize_datetime(eta)
 
+            # Handle interval deserialization
+            interval = schedule.get("interval")
+            if (
+                interval
+                and isinstance(interval, dict)
+                and interval.get("type") == "timedelta"
+            ):
+                from ..serialization import deserialize_timedelta
+
+                schedule["interval"] = deserialize_timedelta(interval)
+
             task: Task = {
                 "id": row[0],
                 "func_path": row[1],
@@ -233,7 +259,17 @@ class SQLiteStorage(BaseStorage):
             }
 
             # Update attempts and last_attempt_at for RUNNING status
-            updated_task = transition_status(task, TaskStatus.RUNNING)
+            # Don't increment attempts if this is a retry (attempts > 0)
+            current_attempts = task.get("attempts", 0)
+            if current_attempts > 0:
+                # For retry tasks, just update timestamp without incrementing attempts
+                updated_task = task.copy()
+                updated_task["status"] = TaskStatus.RUNNING
+                updated_task["last_attempt_at"] = datetime.now(timezone.utc)
+                updated_task["updated_at"] = datetime.now(timezone.utc)
+            else:
+                # For new tasks, use normal transition_status (increments attempts)
+                updated_task = transition_status(task, TaskStatus.RUNNING)
 
             # Update the task in database with new attempts/timestamp
             await conn.execute(
@@ -355,7 +391,10 @@ class SQLiteStorage(BaseStorage):
                 await conn.rollback()
                 raise NotFoundError(f"Task {task_id} not found")
 
-            attempts = row[0] + 1  # Increment for this attempt
+            current_attempts = row[0] if row[0] is not None else 0
+            attempts = current_attempts + 1  # Increment for this attempt
+            print(
+            )
             last_attempt_at = now
 
             # Create failure result
@@ -389,7 +428,7 @@ class SQLiteStorage(BaseStorage):
             )
 
             # Update task status
-            new_status = "RETRYING" if will_retry else "FAILED"
+            new_status = "PENDING" if will_retry else "FAILED"
             cursor = await conn.execute(
                 """
                 UPDATE tasks 
@@ -489,6 +528,17 @@ class SQLiteStorage(BaseStorage):
             eta = schedule.get("eta")
             if eta:
                 schedule["eta"] = self._deserialize_datetime(eta)
+
+            # Handle interval deserialization
+            interval = schedule.get("interval")
+            if (
+                interval
+                and isinstance(interval, dict)
+                and interval.get("type") == "timedelta"
+            ):
+                from ..serialization import deserialize_timedelta
+
+                schedule["interval"] = deserialize_timedelta(interval)
 
             task: Task = {
                 "id": row[0],

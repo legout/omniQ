@@ -52,10 +52,15 @@ async def test_retry_logic():
 
             # Test 2: Retry the task
             print("2. Testing retry execution...")
+            import time
+
+            time.sleep(3)  # Wait for retry delay (1s + jitter)
             retry_task = await queue.dequeue()
             assert retry_task is not None, "Should have dequeued retry task"
             assert retry_task["id"] == task_id, "Retry task ID should match"
-            assert retry_task["attempts"] == 1, "Should have 1 attempt"
+            assert retry_task["attempts"] == 2, (
+                "Should have 2 attempts (1 original + 1 retry)"
+            )
             print(
                 f"   Dequeued retry task: {retry_task['id']} (attempt {retry_task['attempts']})"
             )
@@ -68,9 +73,12 @@ async def test_retry_logic():
 
             # Test 3: Final failure
             print("3. Testing final failure...")
+            time.sleep(5)  # Wait for second retry delay (2s + jitter)
             final_task = await queue.dequeue()
             assert final_task is not None, "Should have dequeued final retry"
-            assert final_task["attempts"] == 2, "Should have 2 attempts"
+            assert final_task["attempts"] == 3, (
+                "Should have 3 attempts (1 original + 2 retries)"
+            )
 
             # Final failure (no more retries)
             await queue.fail_task(
