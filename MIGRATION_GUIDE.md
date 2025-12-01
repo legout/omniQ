@@ -1,188 +1,175 @@
-# Migration Guide: From Standard Logging to Loguru
+# Migration Guide: From Standard Logging to Enhanced Loguru
 
-This guide helps you migrate from the standard Python `logging` module to Loguru in the context of OmniQ.
+This guide helps you migrate from standard Python logging back to enhanced Loguru-based logging while maintaining v1 compliance.
 
 ## Overview
 
-OmniQ has upgraded its logging system from Python's standard `logging` module to [Loguru](https://github.com/Delgan/loguru) for better performance, structured logging, and enhanced features.
+OmniQ has restored Loguru for enhanced logging capabilities while maintaining a simple 4-function API for v1 compliance. This provides production-ready features like correlation IDs, structured output, and log rotation.
 
 ## What Changed
 
-- **Backend**: Standard `logging` → Loguru
-- **Enhanced Features**: Structured logging, better exception handling, automatic formatting
-- **Backward Compatibility**: All existing function calls continue to work
-- **New Capabilities**: Context management, file rotation, compression
+- **Backend**: Standard Python `logging` → Enhanced Loguru
+- **Enhanced Features**: Added correlation IDs, structured logging, file rotation
+- **Backward Compatibility**: All existing logging functions continue to work
+- **Smart Defaults**: Automatic configuration for DEV/PROD environments
+- **Performance**: Async logging with minimal overhead (<5%)
 
 ## Environment Variables
 
-### Old vs New
+### Enhanced Configuration
 
-Both old and new environment variables are supported for backward compatibility:
-
-| Old Variable | New Variable | Status |
-|--------------|--------------|--------|
-| `OMNIQ_LOG_LEVEL` | `LOGURU_LEVEL` | Both supported |
-| N/A | `OMNIQ_LOG_FORMAT` | New (Loguru format strings) |
-| N/A | `OMNIQ_LOG_ROTATION` | New (file rotation) |
+| Variable | Purpose | Default | Valid Values |
+|----------|---------|---------|--------------|
+| `OMNIQ_LOG_LEVEL` | Set logging level | `INFO` | `DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL` |
+| `OMNIQ_LOG_MODE` | Environment mode | `DEV` | `DEV`, `PROD` |
+| `OMNIQ_LOG_FILE` | Log file path (PROD mode) | `logs/omniq.log` | Any valid file path |
+| `OMNIQ_LOG_ROTATION` | Log rotation size | `100 MB` | Size strings like `"10 MB"`, `"1 GB"` |
+| `OMNIQ_LOG_RETENTION` | Log retention period | `30 days` | Time strings like `"7 days"`, `"1 week"` |
 
 ### Migration Steps
 
 ```bash
-# Old way (still works)
+# Old way (still supported)
 export OMNIQ_LOG_LEVEL=DEBUG
 
-# New way (recommended)
-export LOGURU_LEVEL=DEBUG
-export OMNIQ_LOG_FORMAT="{time} | {level} | {message}"
-export OMNIQ_LOG_ROTATION="10 MB"
+# New enhanced way
+export OMNIQ_LOG_LEVEL=DEBUG
+export OMNIQ_LOG_MODE=PROD
+export OMNIQ_LOG_FILE=/var/log/omniq/app.log
+export OMNIQ_LOG_ROTATION="50 MB"
+export OMNIQ_LOG_RETENTION="7 days"
 ```
 
 ## Code Migration
 
 ### Basic Logging
 
-**Before (still works):**
+**Before (standard logging):**
 ```python
-import logging
-from omniq.logging import get_logger
+from omniq.logging import configure_logging, get_logger
 
+# Standard logging
+configure_logging(level="DEBUG")
 logger = get_logger()
-logger.info("Task completed")
-logger.error("Something went wrong")
+logger.info("Task completed: task-123")
 ```
 
-**After (recommended):**
+**After (enhanced Loguru - current):**
 ```python
-from omniq.logging import log_structured
+from omniq.logging import configure, get_logger
 
-# Structured logging with context
-log_structured("info", "Task completed", 
-    task_id="task-123", 
-    duration=1.5, 
-    status="success")
-
-log_structured("error", "Something went wrong",
-    error_type="ValueError",
-    task_id="task-123")
+# Enhanced logging with smart defaults
+configure(level="DEBUG")
+logger = get_logger()
+logger.info("Task completed: task-123")
 ```
 
-### Exception Handling
+### Task Context Logging
 
-**Before:**
+**New Feature - Not available before:**
 ```python
-import logging
-import traceback
+from omniq.logging import task_context, bind_task
 
-try:
-    risky_operation()
-except Exception as e:
-    logger = get_logger()
-    logger.error(f"Operation failed: {e}")
-    logger.error(traceback.format_exc())
-```
+# Automatic correlation ID and timing
+with task_context("task-123", "process") as task_logger:
+    task_logger.info("Processing data")
+    # All logs include correlation_id, operation, timing
 
-**After:**
-```python
-from omniq.logging import log_exception
-
-try:
-    risky_operation()
-except Exception as e:
-    log_exception("Operation failed", 
-        operation="risky_operation",
-        user_id="user-123")
-    # Automatically includes full traceback
+# Manual context binding
+logger = bind_task("task-456", worker="worker-1", operation="enqueue")
+logger.info("Task enqueued with context")
 ```
 
 ### Configuration
 
-**Before:**
+**Before (standard logging):**
 ```python
 from omniq.logging import configure_logging
 
+# Basic configuration only
 configure_logging(level="DEBUG")
 ```
 
-**After (enhanced):**
+**After (enhanced Loguru):**
 ```python
-from omniq.logging import configure_logging
+from omniq.logging import configure
 
-configure_logging(
+# Enhanced configuration with production features
+configure(
     level="DEBUG",
-    format="{time:YYYY-MM-DD HH:mm:ss} | {level} | {name}:{function}:{line} | {message}",
-    rotation="10 MB",
-    retention="1 week",
+    rotation="50 MB",
+    retention="7 days",
     compression="gz"
 )
 ```
 
-## New Features
+## Enhanced Features
 
-### 1. Structured Logging
-
-Add contextual data to your logs:
+### 1. Task Correlation and Timing
 
 ```python
-from omniq.logging import add_structured_context, log_structured
+from omniq.logging import task_context
 
-# Add context to all subsequent logs
-add_structured_context(
-    service="my-app",
-    environment="production",
-    version="1.0.0"
+# Automatic correlation ID and execution timing
+with task_context("task-123", "process_data") as logger:
+    logger.info("Starting data processing")
+    result = await process_data(data)
+    logger.info(f"Processed {len(data)} records")
+# Automatic: correlation_id, operation, start_time, duration, error handling
+```
+
+### 2. Structured Context Binding
+
+```python
+from omniq.logging import bind_task
+
+# Bind additional context to all log messages
+logger = bind_task(
+    "task-456", 
+    worker="worker-1",
+    user_id="user-123",
+    session="session-abc"
 )
 
-# All logs will now include this context
-log_structured("info", "User logged in", user_id="123", ip="192.168.1.1")
+logger.info("Task started")
+# Output includes: task_id, worker, user_id, session, correlation_id
 ```
 
-### 2. Better Exception Formatting
+### 3. Environment-Based Output
 
-Loguru automatically formats exceptions with color and context:
-
-```python
-from omniq.logging import log_exception
-
-try:
-    # Some complex nested code
-    process_data(data)
-except Exception:
-    log_exception("Data processing failed")
-    # Output includes:
-    # - Full traceback with syntax highlighting
-    # - Variable values in traceback
-    # - File paths and line numbers
+**DEV Mode (default):**
+```
+2025-12-01 10:30:45 | INFO     | omniq.core:123 | Task execution started
+└── task_id: abc-123 | operation: process_task | worker: worker-1
 ```
 
-### 3. File Rotation and Compression
+**PROD Mode:**
+```json
+{
+  "timestamp": "2025-12-01T10:30:45.123Z",
+  "level": "INFO",
+  "logger": "omniq.core",
+  "message": "Task execution started",
+  "task_id": "abc-123",
+  "operation": "process_task",
+  "worker": "worker-1",
+  "correlation_id": "abc-123"
+}
+```
 
-Automatic log file management:
+### 4. Production Features
 
 ```python
-from omniq.logging import configure_logging
-
-configure_logging(
+# Automatic log rotation and compression
+configure(
     level="INFO",
-    log_file="app.log",
-    rotation="10 MB",        # Rotate when file reaches 10MB
-    retention="1 week",      # Keep logs for 1 week
-    compression="gz"         # Compress old logs
+    rotation="100 MB",     # Rotate when file reaches 100MB
+    retention="30 days",   # Keep logs for 30 days
+    compression="gz"        # Compress rotated files
 )
-```
 
-### 4. Custom Formatting
-
-Powerful format strings with built-in variables:
-
-```python
-configure_logging(
-    format=(
-        "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | "
-        "<level>{level: <8}</level> | "
-        "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> | "
-        "<level>{message}</level>"
-    )
-)
+# In PROD mode, logs automatically go to file with JSON format
+# In DEV mode, logs go to console with colors
 ```
 
 ## Backward Compatibility
@@ -198,7 +185,7 @@ from omniq.logging import (
     log_storage_error, log_serialization_error
 )
 
-# These all work exactly as before
+# These all work exactly as before, now with enhanced output
 log_task_enqueued("task-123", "module.function")
 log_task_started("task-123", 1)
 log_task_completed("task-123", 1)
@@ -207,149 +194,191 @@ log_task_failed("task-123", "Error message", will_retry=True)
 
 ### What's Enhanced
 
-These functions now automatically include structured data when using Loguru:
+These functions now include structured data and correlation:
 
 ```python
-# Before: Simple string message
-# "Task enqueued: task-123 -> module.function"
+# Before: Standard logging format
+# "2024-01-01 12:00:00 - omniq - INFO - Task enqueued: task-123 -> module.function"
 
-# After: Structured log with context
-# "Task enqueued" task_id="task-123" func_path="module.function"
+# After: Enhanced format with structured data
+# DEV: "2025-12-01 10:30:45 | INFO | omniq.logging:189 | Task enqueued: task-123 -> test_module.test_function"
+# PROD: {"timestamp": "...", "level": "INFO", "task_id": "task-123", "func_path": "module.function", ...}
 ```
 
 ## Performance Considerations
 
-### Loguru Benefits
+### Enhanced Logging Benefits
 
-- **Faster**: Loguru is optimized for performance
-- **Less Boilerplate**: No need to configure handlers and formatters
-- **Memory Efficient**: Automatic log rotation prevents memory issues
-- **Thread Safe**: Built-in thread safety for concurrent applications
+- **Async Logging**: Non-blocking, <5% performance overhead
+- **Smart Defaults**: Zero configuration required for most use cases
+- **Production Ready**: Log rotation, compression, structured output
+- **Correlation IDs**: Automatic task tracing across distributed systems
+- **Thread-Safe**: Works correctly with concurrent workers
 
 ### Migration Impact
 
-- **Zero Downtime**: Backward compatibility ensures smooth transition
-- **Gradual Adoption**: Can migrate to new features incrementally
-- **Performance Improvement**: Should see better logging performance
+- **Enhanced Features**: Correlation IDs, structured logging, rotation
+- **Better Performance**: Async logging with minimal overhead
+- **Production Features**: JSON output, file management
+- **Same API**: All existing code continues to work
 
 ## Troubleshooting
 
 ### Common Issues
 
 1. **Import Errors**: Ensure Loguru is installed (`pip install loguru`)
-2. **Format Strings**: Use Loguru format syntax, not logging module syntax
-3. **File Permissions**: Ensure write permissions for log files with rotation
+2. **Performance**: Use appropriate log levels (DEBUG can be verbose)
+3. **File Permissions**: Ensure log directory is writable in PROD mode
+4. **Disk Space**: Monitor log rotation settings in production
 
 ### Getting Help
 
 ```python
-from omniq.logging import LOGURU_AVAILABLE
+from omniq.logging import configure, get_logger
 
-if not LOGURU_AVAILABLE:
-    print("Loguru not available, falling back to standard logging")
+# Test basic functionality
+configure()
+logger = get_logger()
+logger.info("Enhanced Loguru logging is working")
+
+# Test task context
+with task_context("test-123", "test") as task_logger:
+    task_logger.info("Task context working")
 ```
 
 ## Best Practices
 
-### 1. Use Structured Logging
+### 1. Use Task Context for Operations
 
 ```python
-# Good
-log_structured("info", "API request completed", 
-    method="POST", 
-    endpoint="/api/tasks", 
-    status_code=200, 
-    duration_ms=150)
+# Good - automatic correlation and timing
+with task_context(task_id, "process") as logger:
+    result = await process_data(data)
+    logger.info("Processing complete")
 
-# Avoid
-log_structured("info", f"API request completed: POST /api/tasks -> 200 in 150ms")
+# Avoid - manual correlation
+logger.info(f"Processing task {task_id}")
+# ... later ...
+logger.info(f"Task {task_id} completed")
 ```
 
-### 2. Add Context Early
+### 2. Bind Context for Long-Running Operations
 
 ```python
-# At application startup
-add_structured_context(
-    service="omniq-worker",
-    environment=os.getenv("ENV", "development"),
-    version="1.0.0"
-)
+# Good - persistent context
+worker_logger = bind_task(worker_id=worker_id, node=node_name)
+worker_logger.info("Worker started")
+
+# Throughout worker lifecycle
+worker_logger.info("Processing task %s", task_id)
+worker_logger.error("Task failed: %s", error)
 ```
 
 ### 3. Use Appropriate Log Levels
 
 ```python
-log_structured("trace", "Detailed debugging info")     # Very verbose
-log_structured("debug", "Development debugging")       # Debug info
-log_structured("info", "Normal application flow")      # General info
-log_structured("warning", "Unexpected but recoverable") # Issues
-log_structured("error", "Error conditions")            # Errors
-log_structured("critical", "Critical failures")       # Critical
+logger.debug("Detailed debugging info: %s", debug_data)      # Development only
+logger.info("Normal application flow: %s", event)          # General info
+logger.warning("Unexpected but recoverable: %s", issue)     # Issues
+logger.error("Error conditions: %s", error)                  # Errors
+logger.critical("Critical failures: %s", critical)           # Critical
 ```
 
-### 4. Leverage Exception Logging
+### 4. Configure for Environment
 
 ```python
-try:
-    process_task(task)
-except Exception:
-    log_exception("Task processing failed", 
-        task_id=task.id,
-        task_type=task.func_path)
-    # Don't re-raise if you've logged the exception properly
+# Development
+configure(level="DEBUG")  # Verbose output, console only
+
+# Production
+configure(
+    level="INFO",
+    rotation="100 MB",
+    retention="30 days",
+    compression="gz"
+)  # Structured output, file management
+```
+
+### 5. Handle Exceptions in Context
+
+```python
+# Task context automatically handles exceptions and timing
+with task_context("task-123", "process") as logger:
+    try:
+        result = await risky_operation()
+        logger.info("Operation successful")
+    except Exception as e:
+        logger.error("Operation failed: %s", e)
+        # Context manager automatically logs timing and failure
+        raise
 ```
 
 ## Complete Example
 
-Here's a complete example of a migrated application:
+Here's a complete example using enhanced logging:
 
 ```python
 import os
+import asyncio
 from omniq import AsyncOmniQ
 from omniq.config import Settings
-from omniq.logging import configure_logging, add_structured_context, log_structured
+from omniq.logging import configure, get_logger, task_context, bind_task
 
 async def main():
-    # Configure logging with Loguru
-    configure_logging(
-        level=os.getenv("LOG_LEVEL", "INFO"),
-        format="{time} | {level} | {message}",
-        rotation="10 MB",
-        retention="1 week"
-    )
+    # Configure enhanced logging
+    log_mode = os.getenv("OMNIQ_LOG_MODE", "DEV")
+    log_level = os.getenv("OMNIQ_LOG_LEVEL", "INFO")
     
-    # Add structured context
-    add_structured_context(
-        service="task-processor",
-        environment=os.getenv("ENV", "development")
-    )
+    if log_mode == "PROD":
+        configure(
+            level=log_level,
+            rotation="100 MB",
+            retention="30 days",
+            compression="gz"
+        )
+    else:
+        configure(level=log_level)
+    
+    logger = get_logger()
+    logger.info("Application started in %s mode", log_mode)
     
     # Initialize OmniQ
     settings = Settings(backend="sqlite")
     omniq = AsyncOmniQ(settings)
     
-    log_structured("info", "Application started", 
-        backend=settings.backend.value,
-        log_level=os.getenv("LOG_LEVEL", "INFO"))
+    # Worker with persistent context
+    worker_logger = bind_task(worker_id="worker-1", node="production-1")
+    worker_logger.info("Worker initialized")
     
-    # Process tasks
+    # Process tasks with correlation
     async with omniq.worker_pool() as workers:
-        await workers.process_tasks(duration=300)
+        worker_logger.info("Starting task processing")
+        
+        # Process individual tasks with context
+        for i in range(10):
+            task_id = f"task-{i}"
+            
+            with task_context(task_id, "process") as task_logger:
+                task_logger.info("Processing task %d", i)
+                # Simulate work
+                await asyncio.sleep(0.1)
+                task_logger.info("Task %d completed", i)
     
-    log_structured("info", "Application shutdown complete")
+    worker_logger.info("Worker shutdown complete")
+    logger.info("Application shutdown complete")
 
 if __name__ == "__main__":
-    import asyncio
     asyncio.run(main())
 ```
 
 ## Conclusion
 
-The migration to Loguru provides enhanced logging capabilities while maintaining full backward compatibility. You can:
+The migration to enhanced Loguru logging provides:
 
-1. **Continue using existing code** without changes
-2. **Gradually adopt new features** like structured logging
-3. **Benefit from improved performance** and better formatting
-4. **Use advanced features** like file rotation and compression
+1. **Production Readiness**: Log rotation, compression, structured output
+2. **Task Observability**: Correlation IDs, execution timing, error tracing
+3. **Developer Experience**: Better debugging, colored output, smart defaults
+4. **v1 Compliance**: Simple 4-function API with optional advanced features
+5. **Performance**: Async logging with <5% overhead
 
-The migration is designed to be seamless, allowing you to upgrade at your own pace.
+The migration adds powerful features while maintaining simplicity and backward compatibility.

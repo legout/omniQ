@@ -1,12 +1,12 @@
 # OmniQ Task Queue Library
 
-A modern, async-first task queue library for Python with support for multiple storage backends and structured logging.
+A modern, async-first task queue library for Python with support for multiple storage backends and simple logging.
 
 ## Features
 
 - **Async-first design**: Built for Python's async/await
 - **Multiple storage backends**: File-based and SQLite storage
-- **Structured logging**: Powered by Loguru with enhanced capabilities
+- **Enhanced logging**: Loguru-based logging with correlation IDs and structured output
 - **Task scheduling**: Support for delayed execution with ETA
 - **Retry mechanisms**: Configurable retry policies
 - **Worker pools**: Concurrent task execution
@@ -60,63 +60,66 @@ settings = Settings(
 )
 ```
 
-### Logging Configuration
+### Enhanced Logging Configuration
 
-OmniQ uses Loguru for enhanced logging capabilities. You can configure logging in several ways:
+OmniQ uses Loguru for enhanced logging with correlation IDs, structured output, and production-ready features.
 
 #### Basic Configuration
 
 ```python
-from omniq.logging import configure_logging
+from omniq.logging import configure, get_logger
 
-# Basic configuration
-configure_logging(level="INFO")
+# Configure with smart defaults
+configure(level="INFO")
 
-# Custom format
-configure_logging(
-    level="DEBUG",
-    format="{time} | {level} | {message}"
-)
+# Get logger for custom logging
+logger = get_logger()
+logger.info("Application started")
+```
 
-# File logging with rotation
-configure_logging(
-    level="INFO",
-    rotation="10 MB",
-    retention="1 week",
-    log_file="omniq.log"
-)
+#### Task Context Logging
+
+```python
+from omniq.logging import task_context, bind_task
+
+# Automatic correlation ID and timing
+with task_context("task-123", "process") as logger:
+    logger.info("Processing task")
+    # All logs include correlation_id and timing
+
+# Manual context binding
+logger = bind_task("task-456", worker="worker-1")
+logger.info("Task enqueued")
 ```
 
 #### Environment Variables
 
 ```bash
-# Set log level using either variable
-export OMNIQ_LOG_LEVEL=DEBUG
-export LOGURU_LEVEL=INFO
+# Basic configuration
+export OMNIQ_LOG_LEVEL=DEBUG          # DEBUG, INFO, WARNING, ERROR
+export OMNIQ_LOG_MODE=PROD           # DEV (default) or PROD
 
-# The library checks both variables for compatibility
+# Production features
+export OMNIQ_LOG_FILE=/var/log/omniq/app.log
+export OMNIQ_LOG_ROTATION="100 MB"
+export OMNIQ_LOG_RETENTION="30 days"
 ```
 
-#### Structured Logging
+#### Task and Worker Events
 
 ```python
-from omniq.logging import log_structured, add_structured_context
-
-# Add context to all subsequent logs
-add_structured_context(service="my-app", environment="production")
-
-# Log structured data
-log_structured("info", "Task processed", 
-    task_id="task-123", 
-    duration=1.5, 
-    status="success"
+from omniq.logging import (
+    log_task_enqueued, log_task_started, 
+    log_task_completed, log_task_failed,
+    log_worker_started, log_worker_stopped
 )
 
-# Log exceptions with full traceback
-log_exception("Task failed", 
-    task_id="task-123", 
-    error_type="ValueError"
-)
+# These are called automatically by the library
+# but you can use them for custom logging too
+log_task_enqueued("task-123", "my_module.my_function")
+log_task_started("task-123", 1)
+log_task_completed("task-123", 1)
+log_task_failed("task-123", "Error message", will_retry=True)
 ```
 
 ## Storage Backends
@@ -212,16 +215,78 @@ async with workers:
     await workers.process_tasks(duration=300)
 ```
 
-## Logging
+## Enhanced Logging
 
-OmniQ provides structured logging out of the box:
+OmniQ provides enhanced logging with Loguru, featuring correlation IDs, structured output, and production-ready features:
 
-### Task Events
+### Core API (4 Functions)
+
+```python
+from omniq.logging import configure, get_logger, task_context, bind_task
+
+# 1. Configure logging with smart defaults
+configure(level="INFO", rotation="100 MB", retention="30 days")
+
+# 2. Get logger instance
+logger = get_logger()
+logger.info("Application started")
+
+# 3. Task context with automatic correlation
+with task_context("task-123", "process") as task_logger:
+    task_logger.info("Processing data")
+    # Automatic correlation_id, timing, and error handling
+
+# 4. Manual context binding
+bound_logger = bind_task("task-456", worker="worker-1", operation="enqueue")
+bound_logger.info("Task enqueued with context")
+```
+
+### Environment-Based Configuration
+
+```bash
+# Development mode (default)
+# Colored console output, detailed formatting
+export OMNIQ_LOG_MODE=DEV
+export OMNIQ_LOG_LEVEL=DEBUG
+
+# Production mode
+# JSON structured output, file rotation, compression
+export OMNIQ_LOG_MODE=PROD
+export OMNIQ_LOG_LEVEL=INFO
+export OMNIQ_LOG_FILE=/var/log/omniq/app.log
+export OMNIQ_LOG_ROTATION="100 MB"
+export OMNIQ_LOG_RETENTION="30 days"
+```
+
+### Log Output Examples
+
+#### DEV Mode (Colored Console)
+```
+2025-12-01 10:30:45 | INFO     | omniq.core:123 | Task execution started
+└── task_id: abc-123 | operation: process_task | worker: worker-1
+```
+
+#### PROD Mode (JSON Structured)
+```json
+{
+  "timestamp": "2025-12-01T10:30:45.123Z",
+  "level": "INFO",
+  "logger": "omniq.core",
+  "message": "Task execution started",
+  "task_id": "abc-123",
+  "operation": "process_task",
+  "worker": "worker-1",
+  "correlation_id": "abc-123"
+}
+```
+
+### Task and Worker Events
 
 ```python
 from omniq.logging import (
     log_task_enqueued, log_task_started, 
-    log_task_completed, log_task_failed
+    log_task_completed, log_task_failed,
+    log_worker_started, log_worker_stopped
 )
 
 # These are called automatically by the library
@@ -230,15 +295,6 @@ log_task_enqueued("task-123", "my_module.my_function")
 log_task_started("task-123", 1)
 log_task_completed("task-123", 1)
 log_task_failed("task-123", "Error message", will_retry=True)
-```
-
-### Worker Events
-
-```python
-from omniq.logging import log_worker_started, log_worker_stopped
-
-log_worker_started(concurrency=4)
-log_worker_stopped()
 ```
 
 ### Error Logging
@@ -255,25 +311,48 @@ log_serialization_error("deserialize", "Invalid JSON format")
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `OMNIQ_LOG_LEVEL` | Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL) | INFO |
-| `LOGURU_LEVEL` | Alternative log level name (for Loguru compatibility) | INFO |
+| `OMNIQ_LOG_MODE` | Environment mode (DEV, PROD) | DEV |
+| `OMNIQ_LOG_FILE` | Log file path (PROD mode) | logs/omniq.log |
+| `OMNIQ_LOG_ROTATION` | Log rotation size | 100 MB |
+| `OMNIQ_LOG_RETENTION` | Log retention period | 30 days |
 
-## Migration from Standard Logging
+## Enhanced Logging API
 
-If you're migrating from the standard Python `logging` module:
+OmniQ provides enhanced logging using Loguru with a simple 4-function API:
 
-1. **Environment Variables**: Both `OMNIQ_LOG_LEVEL` (old) and `LOGURU_LEVEL` (new) are supported
-2. **Function Calls**: All existing logging function calls remain the same
-3. **Enhanced Features**: You can now use structured logging and better exception handling
+### Core Functions
 
 ```python
-# Old way (still works)
-import logging
-logger = logging.getLogger("omniq")
-logger.info("Task completed")
+from omniq.logging import configure, get_logger, task_context, bind_task
 
-# New way (recommended)
-from omniq.logging import log_structured
-log_structured("info", "Task completed", task_id="task-123", duration=1.5)
+# 1. Configure logging with smart defaults
+configure(level="INFO", rotation="100 MB", retention="30 days")
+
+# 2. Get logger instance
+logger = get_logger()
+logger.info("Custom log message")
+
+# 3. Task context with correlation
+with task_context("task-123", "process") as task_logger:
+    task_logger.info("Processing with correlation")
+
+# 4. Manual context binding
+bound_logger = bind_task("task-456", worker="worker-1")
+bound_logger.info("Manual context binding")
+```
+
+### Legacy Functions (Backward Compatible)
+
+```python
+from omniq.logging import (
+    log_task_enqueued, log_task_started, 
+    log_task_completed, log_task_failed,
+    log_worker_started, log_worker_stopped,
+    log_storage_error, log_serialization_error
+)
+
+# All existing functions work exactly as before
+log_task_enqueued("task-123", "my_module.my_function")
 ```
 
 ## API Reference
@@ -292,10 +371,11 @@ log_structured("info", "Task completed", task_id="task-123", duration=1.5)
 
 ### Logging Functions
 
-- `configure_logging()`: Configure logging behavior
-- `log_structured()`: Log structured messages with context
-- `log_exception()`: Log exceptions with full traceback
-- Task-specific logging functions: `log_task_*()`, `log_worker_*()`, etc.
+- `configure()`: Configure enhanced logging with smart defaults
+- `get_logger()`: Get Loguru logger instance with context binding
+- `task_context()`: Context manager for task correlation and timing
+- `bind_task()`: Bind correlation ID and additional context to logger
+- Legacy functions: `log_task_*()`, `log_worker_*()`, etc. (backward compatible)
 
 ## Development
 

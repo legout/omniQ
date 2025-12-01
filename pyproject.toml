@@ -18,5 +18,7 @@ build-backend = "hatchling.build"
 
 [dependency-groups]
 dev = [
+    "cloudpickle>=3.1.2",
     "ipython>=9.7.0",
+    "polars>=1.35.2",
 ]
