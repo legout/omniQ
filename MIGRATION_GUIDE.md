@@ -1088,6 +1088,8 @@ This migration provides comprehensive error handling while maintaining full back
 
 ## Worker Compatibility Migration
 
+## Worker Compatibility Migration
+
 This section covers migration for AsyncWorkerPool constructor to restore backward compatibility while encouraging migration to the new queue-based interface.
 
 ### Overview
@@ -1157,6 +1159,17 @@ def __init__(
     logger: Optional[Logger] = None,
 ):
 ```
+
+### v1 API Compliance Updates
+
+This migration also includes fixes for v1 API compliance:
+
+- **Default Serializer**: Changed from "json" to "msgspec" for security compliance
+- **OmniQ.from_env()**: Added convenience constructors to both AsyncOmniQ and OmniQ classes
+- **Enhanced SQLite Backend**: Now properly supports `db_url` setting with URL parsing
+- **Improved Configuration Validation**: Comprehensive validation with clear error messages
+- **TaskError Model**: Already fully implemented with comprehensive error handling
+- **Serializer Support**: All serializers properly handle TaskError objects
 
 #### Parameter Validation
 

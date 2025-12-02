@@ -29,7 +29,7 @@ class Settings:
         default_timeout: Optional[int] = 300,  # 5 minutes
         default_max_retries: int = 3,
         result_ttl: int = 86400,  # 24 hours in seconds
-        serializer: Literal["msgspec", "cloudpickle", "json"] = "json",
+        serializer: Literal["msgspec", "cloudpickle", "json"] = "msgspec",
         log_level: str = "INFO",
     ):
         self.backend = backend
@@ -106,7 +106,7 @@ class Settings:
                 raise ValueError(f"Invalid OMNIQ_RESULT_TTL: {e}")
 
         # Serializer selection
-        serializer_env = os.getenv("OMNIQ_SERIALIZER", "json").lower()
+        serializer_env = os.getenv("OMNIQ_SERIALIZER", "msgspec").lower()
         if serializer_env not in ("msgspec", "cloudpickle", "json"):
             raise ValueError(
                 f"Invalid OMNIQ_SERIALIZER: {serializer_env}. Must be 'msgspec', 'cloudpickle', or 'json'"
@@ -152,13 +152,35 @@ class Settings:
 
     def validate(self) -> None:
         """Validate settings and raise errors for invalid configurations."""
-        # Validate backend-specific requirements
-        if self.backend == BackendType.SQLITE and not self.db_url:
-            raise ValueError("OMNIQ_DB_URL is required when using SQLite backend")
+        # Validate backend selection
+        if not isinstance(self.backend, BackendType):
+            raise ValueError(
+                f"Invalid storage backend: {self.backend}. Must be 'file' or 'sqlite'"
+            )
 
-        # Validate base directory
-        if not self.base_dir:
-            raise ValueError("Base directory cannot be empty")
+        # Validate backend-specific requirements
+        if self.backend == BackendType.SQLITE:
+            if not self.db_url:
+                raise ValueError("db_url is required when using SQLite backend")
+
+            # Validate SQLite URL format
+            if not self.db_url.startswith("sqlite:///"):
+                raise ValueError(
+                    f"Invalid SQLite URL format: {self.db_url}. Must start with 'sqlite:///'"
+                )
+
+            # Validate SQLite URL path
+            from urllib.parse import urlparse
+
+            parsed = urlparse(self.db_url)
+            if not parsed.path or parsed.path == "/":
+                raise ValueError(
+                    f"SQLite URL must specify a database file path: {self.db_url}"
+                )
+
+        # Validate base directory (required for file backend)
+        if self.backend == BackendType.FILE and not self.base_dir:
+            raise ValueError("Base directory is required when using file backend")
 
         # Validate timeout
         if self.default_timeout is not None and self.default_timeout < 0:
@@ -171,3 +193,9 @@ class Settings:
         # Validate TTL
         if self.result_ttl < 0:
             raise ValueError("Result TTL must be non-negative")
+
+        # Validate serializer
+        if self.serializer not in ("msgspec", "cloudpickle", "json"):
+            raise ValueError(
+                f"Invalid serializer: {self.serializer}. Must be 'msgspec', 'cloudpickle', or 'json'"
+            )

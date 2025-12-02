@@ -67,10 +67,10 @@ class MsgspecSerializer:
                 "Install it with: pip install msgspec"
             ) from e
 
-        self._task_encoder = msgspec.json.Encoder(type=Task)
-        self._task_decoder = msgspec.json.Decoder(type=Task)
-        self._result_encoder = msgspec.json.Encoder(type=TaskResult)
-        self._result_decoder = msgspec.json.Decoder(type=TaskResult)
+        self._task_encoder = msgspec.json.Encoder()
+        self._task_decoder = msgspec.json.Decoder(Task)
+        self._result_encoder = msgspec.json.Encoder()
+        self._result_decoder = msgspec.json.Decoder(TaskResult)
 
     def encode_task(self, task: Task) -> bytes:
         """Encode a task using msgspec JSON."""
@@ -170,6 +170,22 @@ class JSONSerializer:
                 return serialize_timedelta(obj)
             elif hasattr(obj, "to_dict") and callable(getattr(obj, "to_dict")):
                 # Handle TaskError and other objects with to_dict method
+                # But avoid circular references by checking for TaskError specifically
+                if obj.__class__.__name__ == "TaskError":
+                    # Convert TaskError to dict manually to avoid circular reference
+                    return {
+                        "error_type": obj.error_type,
+                        "message": obj.message,
+                        "timestamp": obj.timestamp.isoformat(),
+                        "traceback": obj.traceback,
+                        "exception_type": obj.exception_type,
+                        "context": obj.context,
+                        "retry_count": obj.retry_count,
+                        "is_retryable": obj.is_retryable,
+                        "max_retries": obj.max_retries,
+                        "severity": obj.severity,
+                        "category": obj.category,
+                    }
                 return obj.to_dict()
             raise TypeError(
                 f"Object of type {type(obj).__name__} is not JSON serializable"

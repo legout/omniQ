@@ -58,7 +58,11 @@ class AsyncOmniQ:
         if self.settings.backend.value == "file":
             return FileStorage(self.settings.base_dir, serializer)
         elif self.settings.backend.value == "sqlite":
-            return SQLiteStorage(self.settings.base_dir / "omniq.db")
+            if self.settings.db_url:
+                return SQLiteStorage(db_url=self.settings.db_url)
+            else:
+                # Fallback to default path for backward compatibility
+                return SQLiteStorage(db_path=self.settings.base_dir / "omniq.db")
         else:
             raise ValueError(f"Unknown backend: {self.settings.backend}")
 
@@ -173,6 +177,19 @@ class AsyncOmniQ:
             queue=self._queue, concurrency=concurrency, poll_interval=poll_interval
         )
 
+    @classmethod
+    def from_env(cls) -> AsyncOmniQ:
+        """
+        Create AsyncOmniQ from environment variables.
+
+        Uses Settings.from_env() to create configuration from environment variables.
+
+        Returns:
+            AsyncOmniQ instance configured from environment
+        """
+        settings = Settings.from_env()
+        return cls(settings=settings)
+
 
 class OmniQ:
     """
@@ -276,3 +293,16 @@ class OmniQ:
             concurrency=concurrency,
             poll_interval=poll_interval,
         )
+
+    @classmethod
+    def from_env(cls) -> OmniQ:
+        """
+        Create OmniQ from environment variables.
+
+        Uses Settings.from_env() to create configuration from environment variables.
+
+        Returns:
+            OmniQ instance configured from environment
+        """
+        settings = Settings.from_env()
+        return cls(settings=settings)

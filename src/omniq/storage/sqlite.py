@@ -4,6 +4,7 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
+from urllib.parse import urlparse
 
 from .base import BaseStorage, NotFoundError, StorageError
 from ..models import Task, TaskResult, TaskStatus, transition_status
@@ -17,14 +18,45 @@ class SQLiteStorage(BaseStorage):
     with proper indexing for efficient dequeue operations.
     """
 
-    def __init__(self, db_path: str | Path):
+    def __init__(self, db_path: str | Path | None = None, db_url: Optional[str] = None):
         """
-        Initialize SQLite storage with database path.
+        Initialize SQLite storage with database path or URL.
 
         Args:
-            db_path: Path to SQLite database file
+            db_path: Path to SQLite database file (legacy)
+            db_url: Database URL for SQLite connection (recommended)
         """
-        self.db_path = Path(db_path)
+        if db_url is not None:
+            # Parse db_url to extract path
+            parsed = urlparse(db_url)
+            if parsed.scheme != "sqlite":
+                raise ValueError(f"Invalid SQLite URL scheme: {parsed.scheme}")
+
+            # Handle URL parsing - urlparse may add leading slashes
+            path = parsed.path
+            if path.startswith("//"):
+                # Remove leading slashes added by URL parsing
+                path = path[2:]
+
+            # Convert to absolute path if relative
+            final_path = Path(path)
+            if not final_path.is_absolute():
+                # If path is relative, make it absolute to current directory
+                final_path = Path.cwd() / final_path
+            else:
+                # If path is already absolute, use it as-is
+                final_path = final_path.resolve()
+
+            # Ensure parent directory exists
+            final_path.parent.mkdir(parents=True, exist_ok=True)
+
+            self.db_path = final_path
+        elif db_path is not None:
+            # Legacy direct path support
+            self.db_path = Path(db_path)
+        else:
+            raise ValueError("Either db_path or db_url must be provided")
+
         self._connection = None
 
     async def _get_connection(self):
