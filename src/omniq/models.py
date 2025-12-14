@@ -14,7 +14,6 @@ class TaskStatus(str, Enum):
     RUNNING = "RUNNING"
     SUCCESS = "SUCCESS"
     FAILED = "FAILED"
-    RETRYING = "RETRYING"
     CANCELLED = "CANCELLED"
 
 
@@ -199,31 +198,30 @@ class TaskResult(TypedDict):
     last_attempt_at: Optional[datetime]
 
 
-# Status transition helpers
-def can_transition(from_status: TaskStatus, to_status: TaskStatus) -> bool:
-    """Check if a status transition is allowed."""
-    valid_transitions = {
-        TaskStatus.PENDING: {
-            TaskStatus.RUNNING,
-            TaskStatus.CANCELLED,
-        },
-        TaskStatus.RUNNING: {
-            TaskStatus.SUCCESS,
-            TaskStatus.FAILED,
-            TaskStatus.RETRYING,
-            TaskStatus.CANCELLED,
-        },
-        TaskStatus.RETRYING: {
-            TaskStatus.PENDING,  # Rescheduled for retry
-            TaskStatus.RUNNING,  # Picked up for execution
-            TaskStatus.CANCELLED,
-        },
-        TaskStatus.SUCCESS: set(),  # Terminal state
-        TaskStatus.FAILED: set(),  # Terminal state
-        TaskStatus.CANCELLED: set(),  # Terminal state
-    }
+# Status transition helpers - Optimized for performance
 
-    return to_status in valid_transitions.get(from_status, set())
+# Immutable cached transition matrix for O(1) lookups
+_VALID_TRANSITIONS = {
+    TaskStatus.PENDING: frozenset({TaskStatus.RUNNING, TaskStatus.CANCELLED}),
+    TaskStatus.RUNNING: frozenset({TaskStatus.SUCCESS, TaskStatus.FAILED, TaskStatus.CANCELLED}),
+    TaskStatus.FAILED: frozenset({TaskStatus.PENDING, TaskStatus.CANCELLED}),  # For retries
+    TaskStatus.SUCCESS: frozenset(),  # Terminal state
+    TaskStatus.CANCELLED: frozenset(),  # Terminal state
+}
+
+
+def can_transition(from_status: TaskStatus, to_status: TaskStatus) -> bool:
+    """
+    Check if a status transition is allowed.
+    
+    Optimized with early returns and immutable frozensets for O(1) performance.
+    """
+    # Early return for no-op transitions (fastest path)
+    if from_status == to_status:
+        return True
+    
+    # O(1) set lookup using cached frozensets
+    return to_status in _VALID_TRANSITIONS.get(from_status, frozenset())
 
 
 def transition_status(task: Task, new_status: TaskStatus) -> Task:
@@ -233,12 +231,17 @@ def transition_status(task: Task, new_status: TaskStatus) -> Task:
             f"Invalid status transition from {task['status']} to {new_status}"
         )
 
+    # Early return for no-op transition
+    if task["status"] == new_status:
+        return task
+
     now = datetime.now(timezone.utc)
     updated_task = task.copy()
     updated_task["status"] = new_status
     updated_task["updated_at"] = now
 
-    if new_status in {TaskStatus.RUNNING, TaskStatus.RETRYING}:
+    # Increment attempts only when transitioning to RUNNING
+    if new_status == TaskStatus.RUNNING:
         updated_task["attempts"] += 1
         updated_task["last_attempt_at"] = now
 

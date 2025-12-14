@@ -195,7 +195,8 @@ class FileStorage(BaseStorage):
             task = self.serializer.decode_task(data)
 
             # Update status based on retry intent
-            new_status = TaskStatus.RETRYING if will_retry else TaskStatus.FAILED
+            # With simplified state machine, failed tasks ready for retry transition to PENDING
+            new_status = TaskStatus.PENDING if will_retry else TaskStatus.FAILED
             updated_task = transition_status(task, new_status)
 
             # Store error info in a result file
@@ -307,11 +308,10 @@ class FileStorage(BaseStorage):
             else:
                 task["schedule"]["eta"] = new_eta
 
-            # For rescheduling, we need to handle the status transition properly
-            # If task is RUNNING, we need to transition through RETRYING first
+            # For rescheduling, handle status transition properly
+            # If task is RUNNING, transition to PENDING for rescheduling
             if task["status"] == TaskStatus.RUNNING:
                 # Create a new task with PENDING status for rescheduling
-                # This is a special case for rescheduling
                 updated_task = task.copy()
                 updated_task["status"] = TaskStatus.PENDING
                 updated_task["updated_at"] = datetime.now(timezone.utc)

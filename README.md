@@ -1,15 +1,17 @@
 # OmniQ Task Queue Library
 
-A modern, async-first task queue library for Python with support for multiple storage backends and simple logging.
+A modern, async-first task queue library for Python with support for multiple storage backends, enhanced logging, and a clean separation of concerns between task queue, worker, and storage layers.
 
 ## Features
 
 - **Async-first design**: Built for Python's async/await
+- **Core task queue engine**: `AsyncTaskQueue` class handles enqueue/dequeue logic, scheduling, and retries
+- **Clean architecture**: Separation of concerns between queue, worker, and storage layers
 - **Multiple storage backends**: File-based and SQLite storage
 - **Enhanced logging**: Loguru-based logging with correlation IDs and structured output
 - **Task scheduling**: Support for delayed execution with ETA and interval tasks
-- **Retry mechanisms**: Configurable retry policies with exponential backoff
-- **Worker pools**: Concurrent task execution
+- **Retry mechanisms**: Configurable retry policies with exponential backoff with jitter
+- **Worker pools**: Concurrent task execution with proper task lifecycle management
 - **Type safety**: Full type annotations throughout
 - **Interval tasks**: Repeating tasks with timedelta or int seconds support
 
@@ -258,6 +260,54 @@ async def process_data(data, option=False):
     return result
 ```
 
+## AsyncTaskQueue Architecture
+
+OmniQ features a clean separation of concerns with the `AsyncTaskQueue` at its core:
+
+### Core Components
+
+- **AsyncTaskQueue**: Handles all task queue logic including enqueue/dequeue, scheduling, retries, and interval task management
+- **AsyncWorkerPool**: Manages concurrent task execution and communicates with AsyncTaskQueue
+- **Storage Backends**: Provide persistence (File, SQLite) and are abstracted from queue logic
+
+### Benefits
+
+- **Modularity**: Each component has a single responsibility
+- **Testability**: Queue logic can be tested independently of workers and storage
+- **Maintainability**: Changes to retry logic or scheduling don't affect worker implementation
+- **Extensibility**: New storage backends can be added without modifying queue or worker code
+
+### AsyncTaskQueue Key Methods
+
+```python
+from omniq.queue import AsyncTaskQueue
+from omniq.storage.sqlite import SQLiteStorage
+
+# Initialize with storage backend
+storage = SQLiteStorage("path/to/db")
+queue = AsyncTaskQueue(storage)
+
+# Enqueue task with scheduling
+task_id = await queue.enqueue(
+    func_path="my_module.my_function",
+    args=[1, 2],
+    kwargs={"option": True},
+    eta=datetime.now() + timedelta(minutes=5),  # Delayed execution
+    interval=timedelta(hours=1),  # Repeating task
+    max_retries=3,
+    timeout=30
+)
+
+# Dequeue next due task (FIFO ordering)
+task = await queue.dequeue()
+
+# Complete task (handles interval rescheduling)
+await queue.complete_task(task_id, result="success", task=task)
+
+# Fail task with retry logic (exponential backoff with jitter)
+await queue.fail_task(task_id, error="Something went wrong", task=task)
+```
+
 ## Worker Management
 
 ### Basic Worker
@@ -435,6 +485,7 @@ log_task_enqueued("task-123", "my_module.my_function")
 ### Core Classes
 
 - `AsyncOmniQ`: Main async interface for task queue operations
+- `AsyncTaskQueue`: Core task queue engine that handles enqueue/dequeue logic, scheduling, and retries
 - `AsyncWorkerPool`: Worker pool for concurrent task execution
 - `Settings`: Configuration settings for the queue system
 
@@ -474,12 +525,13 @@ python test_sqlite_storage.py
 omniq/
 ├── src/omniq/
 │   ├── __init__.py
-│   ├── core.py          # Main queue implementation
+│   ├── core.py          # Main AsyncOmniQ interface
+│   ├── queue.py         # AsyncTaskQueue - Core task queue engine
 │   ├── config.py        # Configuration management
 │   ├── models.py        # Task and result models
 │   ├── logging.py       # Logging configuration
 │   ├── serialization.py # Task serialization
-│   ├── worker.py        # Worker implementation
+│   ├── worker.py        # AsyncWorkerPool implementation
 │   └── storage/         # Storage backends
 │       ├── __init__.py
 │       ├── base.py      # Abstract storage interface

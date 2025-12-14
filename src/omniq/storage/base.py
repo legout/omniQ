@@ -97,7 +97,7 @@ class BaseStorage(ABC):
         Args:
             task_id: ID of the failed task
             error: Error description or exception details
-            will_retry: True if task will be retried (status RETRYING),
+            will_retry: True if task will be retried (status PENDING),
                        False if final failure (status FAILED)
 
         Raises:
