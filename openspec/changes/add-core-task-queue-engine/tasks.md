@@ -7,4 +7,4 @@
 - [x] 1.6 Update AsyncWorkerPool to use AsyncTaskQueue for task retrieval
 - [x] 1.7 Add interval task rescheduling logic to AsyncTaskQueue
 - [x] 1.8 Write tests for AsyncTaskQueue functionality
-- [ ] 1.9 Update documentation to reflect new architecture
+- [x] 1.9 Update documentation to reflect new architecture
