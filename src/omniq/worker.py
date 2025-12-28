@@ -166,7 +166,11 @@ class AsyncWorkerPool:
 
                 if task is not None:
                     # Schedule task execution with concurrency limit
-                    asyncio.create_task(self._execute_task_with_limit(task))
+                    outer_task = asyncio.create_task(
+                        self._execute_task_with_limit(task)
+                    )
+                    self._tasks.add(outer_task)
+                    outer_task.add_done_callback(lambda t: self._tasks.discard(t))
                 else:
                     # No tasks available, wait before next poll
                     try:

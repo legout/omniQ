@@ -226,8 +226,8 @@ class AsyncTaskQueue:
             extra={"task_id": task_id},
         )
 
-        # Don't increment attempts here - storage should handle attempt counting
-        # Use current attempts from task
+        # Note: storage.dequeue() already incremented attempts when transitioning to RUNNING
+        # Use the current attempts value from the task (post-increment)
         current_attempts = task.get("attempts", 0)
 
         # Check if task should be retried

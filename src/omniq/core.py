@@ -100,17 +100,6 @@ class AsyncOmniQ:
         if timeout is None:
             timeout = self.settings.default_timeout
 
-        # Create task (ensure max_retries is not None)
-        task = create_task(
-            func_path=func_path,
-            args=list(args),
-            kwargs=kwargs,
-            eta=eta,
-            interval=interval,
-            max_retries=max_retries or self.settings.default_max_retries,
-            timeout=timeout,
-        )
-
         # Enqueue to task queue
         task_id = await self._queue.enqueue(
             func_path=func_path,

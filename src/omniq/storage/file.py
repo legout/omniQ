@@ -332,10 +332,7 @@ class FileStorage(BaseStorage):
             task = self.serializer.decode_task(data)
 
             # Update eta
-            if "eta" not in task["schedule"]:
-                task["schedule"]["eta"] = new_eta
-            else:
-                task["schedule"]["eta"] = new_eta
+            task["schedule"]["eta"] = new_eta
 
             # For rescheduling, handle status transition properly
             # If task is RUNNING or FAILED, transition to PENDING for rescheduling
@@ -359,3 +356,12 @@ class FileStorage(BaseStorage):
 
         except Exception as e:
             raise StorageError(f"Failed to reschedule task {task_id}: {e}")
+
+    async def close(self) -> None:
+        """
+        Close the file storage backend.
+
+        File storage doesn't require explicit resource cleanup,
+        but the method is provided for interface consistency.
+        """
+        pass

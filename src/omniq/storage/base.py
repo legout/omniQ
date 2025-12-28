@@ -163,6 +163,15 @@ class BaseStorage(ABC):
         """
         pass
 
+    @abstractmethod
+    async def close(self) -> None:
+        """
+        Close the storage backend and release resources.
+
+        This method should be called when the storage backend is no longer needed.
+        """
+        pass
+
 
 class StorageError(Exception):
     """Base exception for storage-related errors."""
