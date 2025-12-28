@@ -370,23 +370,11 @@ class SQLiteStorage(BaseStorage):
                 task["error"] = deserialize_task_error(self._deserialize_json(row[13]))
 
             # Update attempts and last_attempt_at for RUNNING status
-            # Don't increment attempts if this is a retry (attempts > 0)
-            current_attempts = task.get("attempts", 0)
+            # Always use transition_status which handles attempt counting correctly
             print(
-                f"DEBUG: In dequeue, task_id={task['id']}, current_attempts={current_attempts}"
+                f"DEBUG: In dequeue, task_id={task['id']}, current_attempts={task.get('attempts', 0)}"
             )
-            if current_attempts > 0:
-                # For retry tasks, just update timestamp without incrementing attempts
-                # The attempts count was already incremented by mark_failed
-                print("DEBUG: Using retry branch (no increment)")
-                updated_task = task.copy()
-                updated_task["status"] = TaskStatus.RUNNING
-                updated_task["last_attempt_at"] = datetime.now(timezone.utc)
-                updated_task["updated_at"] = datetime.now(timezone.utc)
-            else:
-                # For new tasks, use normal transition_status (increments attempts)
-                print("DEBUG: Using new task branch (with increment)")
-                updated_task = transition_status(task, TaskStatus.RUNNING)
+            updated_task = transition_status(task, TaskStatus.RUNNING)
             print(f"DEBUG: Final updated_task['attempts']={updated_task['attempts']}")
 
             # Update the task in database with new attempts/timestamp
@@ -510,8 +498,7 @@ class SQLiteStorage(BaseStorage):
                 raise NotFoundError(f"Task {task_id} not found")
 
             current_attempts = row[0] if row[0] is not None else 0
-            attempts = current_attempts + 1  # Increment for this attempt
-            print()
+            attempts = current_attempts  # Use current attempts, don't increment here
             last_attempt_at = now
 
             # Create failure result

@@ -200,8 +200,48 @@ class JSONSerializer:
                 return deserialize_task_error(d)
             return d
 
+        def datetime_object_hook_final(d):
+            # First apply the basic object hook
+            d = datetime_object_hook(d)
+
+            # Convert TaskStatus string back to enum
+            if "status" in d and isinstance(d["status"], str):
+                try:
+                    from .models import TaskStatus
+
+                    old_status = d["status"]
+                    d["status"] = TaskStatus(d["status"])
+                    # Debug: log conversion
+                    print(f"Debug: Converting status {old_status} to {d['status']}")
+                except ValueError:
+                    # Keep original value if it's not a valid TaskStatus
+                    print(
+                        f"Debug: Failed to convert status {d['status']} to TaskStatus"
+                    )
+                    pass
+
+            # Then convert datetime strings back to datetime objects
+            # Look for common datetime field names and ISO format strings
+            datetime_fields = [
+                "eta",
+                "created_at",
+                "updated_at",
+                "last_attempt_at",
+                "finished_at",
+                "timestamp",
+            ]
+            for field in datetime_fields:
+                if field in d and isinstance(d[field], str):
+                    try:
+                        d[field] = datetime.fromisoformat(d[field])
+                    except (ValueError, TypeError):
+                        # Keep original value if it's not a valid datetime string
+                        pass
+
+            return d
+
         self._datetime_converter = datetime_converter
-        self._datetime_object_hook = datetime_object_hook
+        self._datetime_object_hook = datetime_object_hook_final
 
     def encode_task(self, task: Task) -> bytes:
         """Encode a task using JSON."""

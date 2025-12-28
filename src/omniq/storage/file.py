@@ -184,20 +184,36 @@ class FileStorage(BaseStorage):
 
     async def mark_failed(self, task_id: str, error: str, will_retry: bool) -> None:
         """Record failure and update task status."""
-        running_file = self.queue_dir / f"{task_id}.running"
+        # Find the task file in any possible state
+        task_files = [
+            self.queue_dir / f"{task_id}.running",
+            self.queue_dir / f"{task_id}.task",
+            self.queue_dir / f"{task_id}.done",
+        ]
 
-        if not running_file.exists():
-            raise NotFoundError(f"Task {task_id} not found in running state")
+        source_file = None
+        task = None
+
+        for task_file in task_files:
+            if task_file.exists():
+                try:
+                    data = task_file.read_bytes()
+                    task = self.serializer.decode_task(data)
+                    source_file = task_file
+                    break
+                except Exception:
+                    # Skip corrupted files and continue
+                    continue
+
+        if task is None or source_file is None:
+            raise NotFoundError(f"Task {task_id} not found")
 
         try:
-            # Read current task
-            data = running_file.read_bytes()
-            task = self.serializer.decode_task(data)
+            # First transition to FAILED to represent the completed attempt
+            updated_task = transition_status(task, TaskStatus.FAILED)
 
-            # Update status based on retry intent
-            # With simplified state machine, failed tasks ready for retry transition to PENDING
-            new_status = TaskStatus.PENDING if will_retry else TaskStatus.FAILED
-            updated_task = transition_status(task, new_status)
+            # For retryable failures, we'll transition to PENDING after storing the result
+            # The reschedule() call will handle the final PENDING status
 
             # Store error info in a result file
             from ..models import create_failure_result
@@ -214,13 +230,26 @@ class FileStorage(BaseStorage):
             result_file.write_bytes(result_data)
 
             if will_retry:
-                # Keep in .running state for retry logic
+                # For retry, keep in FAILED state temporarily
+                # The reschedule() call will transition to PENDING and set eta
+                target_file = self.queue_dir / f"{task_id}.task"
                 data = self.serializer.encode_task(updated_task)
-                running_file.write_bytes(data)
+                target_file.write_bytes(data)
+
+                # Remove old file if different
+                if source_file != target_file and source_file.exists():
+                    source_file.unlink()
             else:
                 # Move to done state for final failure
                 done_file = self.queue_dir / f"{task_id}.done"
-                os.rename(running_file, done_file)
+
+                # Write updated task with FAILED status to done file
+                data = self.serializer.encode_task(updated_task)
+                done_file.write_bytes(data)
+
+                # Remove old file if different
+                if source_file != done_file and source_file.exists():
+                    source_file.unlink()
 
         except Exception as e:
             raise StorageError(f"Failed to mark task {task_id} as failed: {e}")
@@ -309,8 +338,8 @@ class FileStorage(BaseStorage):
                 task["schedule"]["eta"] = new_eta
 
             # For rescheduling, handle status transition properly
-            # If task is RUNNING, transition to PENDING for rescheduling
-            if task["status"] == TaskStatus.RUNNING:
+            # If task is RUNNING or FAILED, transition to PENDING for rescheduling
+            if task["status"] in [TaskStatus.RUNNING, TaskStatus.FAILED]:
                 # Create a new task with PENDING status for rescheduling
                 updated_task = task.copy()
                 updated_task["status"] = TaskStatus.PENDING

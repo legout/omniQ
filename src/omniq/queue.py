@@ -112,11 +112,6 @@ class AsyncTaskQueue:
             task_id=task_id,
         )
 
-        # Debug: check created task
-        print(
-            f"Debug queue.enqueue: created task max_retries = {task.get('max_retries')}"
-        )
-
         # Store task
         task_id = await self.storage.enqueue(task)
 
@@ -141,10 +136,16 @@ class AsyncTaskQueue:
         if task is None:
             return None
 
-        # Mark task as running in storage
-        await self.storage.mark_running(task["id"])
+        # Note: storage.dequeue() already marks the task as RUNNING
+        # No need to call mark_running() again to avoid double-marking
 
         self.logger.info(f"Task dequeued: {task['id']}", extra={"task_id": task["id"]})
+
+        # Debug: log task status
+        self.logger.debug(
+            f"Task status after dequeue: {task['status']}",
+            extra={"task_id": task["id"]},
+        )
 
         return task
 
@@ -159,17 +160,23 @@ class AsyncTaskQueue:
             result: Task result (optional)
             task: Optional task information for interval rescheduling
         """
-        # Create success result
-        task_result = create_success_result(task_id, result, attempts=1)
+        # Get task information to determine actual attempt count
+        if task is None:
+            task = await self.storage.get_task(task_id)
+            if task is None:
+                self.logger.warning(f"Task not found for completion: {task_id}")
+                return
+
+        # Create success result with actual attempt count
+        attempts = task.get("attempts", 1)
+        last_attempt_at = task.get("last_attempt_at")
+        task_result = create_success_result(
+            task_id, result, attempts=attempts, last_attempt_at=last_attempt_at
+        )
 
         # Handle interval task rescheduling
-        if task and has_interval(task):
+        if has_interval(task):
             await self._reschedule_interval_task(task)
-        else:
-            # Get task by ID for interval rescheduling
-            task_info = await self.storage.get_task(task_id)
-            if task_info and has_interval(task_info):
-                await self._reschedule_interval_task(task_info)
 
         # Mark task as done
         await self.storage.mark_done(task_id, task_result)
@@ -194,6 +201,18 @@ class AsyncTaskQueue:
             traceback: Exception traceback
             task: Optional task information for retry logic
         """
+        # Debug: log task status immediately
+        if task:
+            self.logger.debug(
+                f"Received task with status: {task['status']} (type: {type(task['status'])})",
+                extra={"task_id": task_id},
+            )
+        else:
+            self.logger.debug(
+                f"Received None task, will fetch from storage",
+                extra={"task_id": task_id},
+            )
+
         if task is None:
             # Get task by ID for retry logic
             task = await self.storage.get_task(task_id)
@@ -201,26 +220,33 @@ class AsyncTaskQueue:
                 self.logger.warning(f"Task not found for failure: {task_id}")
                 return
 
-        # Increment retry count
-        new_attempts = task.get("attempts", 0) + 1
+        # Debug: log task status before processing
+        self.logger.debug(
+            f"Task status before failure processing: {task['status']} (type: {type(task['status'])})",
+            extra={"task_id": task_id},
+        )
+
+        # Don't increment attempts here - storage should handle attempt counting
+        # Use current attempts from task
+        current_attempts = task.get("attempts", 0)
 
         # Check if task should be retried
-        if self._should_retry(task, new_attempts):
+        if self._should_retry(task, current_attempts):
             # Calculate retry delay with exponential backoff
-            retry_delay = self._calculate_retry_delay(new_attempts)
+            retry_delay = self._calculate_retry_delay(current_attempts)
             retry_eta = datetime.now(timezone.utc) + timedelta(seconds=retry_delay)
 
-            # Reschedule task
-            await self.storage.reschedule(task_id, retry_eta)
-
-            # Mark as retrying
+            # Mark as retrying first (which transitions to FAILED and sets attempts)
             await self.storage.mark_failed(task_id, error, will_retry=True)
 
+            # Then reschedule task (which transitions to PENDING and sets eta)
+            await self.storage.reschedule(task_id, retry_eta)
+
             self.logger.info(
-                f"Task retry scheduled: {task_id} (attempt {new_attempts}) in {retry_delay}s",
+                f"Task retry scheduled: {task_id} (attempt {current_attempts}) in {retry_delay}s",
                 extra={
                     "task_id": task_id,
-                    "attempt": new_attempts,
+                    "attempt": current_attempts,
                     "delay": retry_delay,
                 },
             )
@@ -229,8 +255,12 @@ class AsyncTaskQueue:
             await self.storage.mark_failed(task_id, error, will_retry=False)
 
             self.logger.error(
-                f"Task failed permanently: {task_id} after {new_attempts} attempts",
-                extra={"task_id": task_id, "attempts": new_attempts, "error": error},
+                f"Task failed permanently: {task_id} after {current_attempts} attempts",
+                extra={
+                    "task_id": task_id,
+                    "attempts": current_attempts,
+                    "error": error,
+                },
             )
 
     async def get_task(self, task_id: str) -> Optional[Task]:

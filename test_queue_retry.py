@@ -29,7 +29,7 @@ async def test_retry_logic():
                 func_path="test_module.failing_function",
                 args=[],
                 kwargs={},
-                max_retries=2,
+                max_retries=3,
                 timeout=30,
             )
 
