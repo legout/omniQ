@@ -32,3 +32,39 @@ The file-based backend MUST support safe dequeueing in the presence of multiple 
 - **THEN** the backend MUST return `None`
 - **AND** MUST NOT create or modify any task or result files.
 
+### Requirement: Retry-safe state transitions
+The file-based backend MUST handle retry scenarios safely, ensuring tasks can be rescheduled without losing state or raising errors due to file state mismatches.
+
+#### Scenario: Mark task as failed with retry
+- **GIVEN** a task in `RUNNING` state with file named `{id}.running`
+- **WHEN** `mark_failed(task_id, error, will_retry=True)` is called
+- **THEN** the backend MUST:
+  - Search for the task file in any of these locations: `{id}.running`, `{id}.task`, `{id}.done`
+  - Transition the task status to `FAILED`
+  - Write the task with `FAILED` status back to `{id}.task` file (for rescheduling)
+  - Remove the original task file if it was in a different location
+  - Store the failure result in the `results/` directory
+
+#### Scenario: Mark task as permanently failed
+- **GIVEN** a task in `RUNNING` state with file named `{id}.running`
+- **WHEN** `mark_failed(task_id, error, will_retry=False)` is called
+- **THEN** the backend MUST:
+  - Search for the task file in any of these locations: `{id}.running`, `{id}.task`, `{id}.done`
+  - Transition the task status to `FAILED`
+  - Write the task with `FAILED` status to `{id}.done` file (final state)
+  - Remove the original task file if it was in a different location
+  - Store the failure result in the `results/` directory
+
+#### Scenario: Reschedule task for retry
+- **GIVEN** a task in `FAILED` state (after `mark_failed` with `will_retry=True`)
+- **WHEN** `reschedule(task_id, new_eta)` is called
+- **THEN** the backend MUST:
+  - Read the task from `{id}.task` file
+  - Update the task's `schedule.eta` to the new retry time
+  - Transition the task status from `FAILED` to `PENDING`
+  - Write the updated task back to `{id}.task` file
+
+#### Scenario: Handle task not found during mark_failed
+- **GIVEN** a task_id that does not exist in any state file (`.running`, `.task`, `.done`)
+- **WHEN** `mark_failed(task_id, error, will_retry=True/False)` is called
+- **THEN** the backend MUST raise `NotFoundError`

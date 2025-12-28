@@ -7,8 +7,8 @@ import asyncio
 import tempfile
 from pathlib import Path
 
-from src.omniq.queue import AsyncTaskQueue
-from src.omniq.storage.sqlite import SQLiteStorage
+from omniq.queue import AsyncTaskQueue
+from omniq.storage.sqlite import SQLiteStorage
 
 
 async def flaky_function(task_id: str):

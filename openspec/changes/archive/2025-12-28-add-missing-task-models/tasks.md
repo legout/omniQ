@@ -2,7 +2,7 @@
 
 ## Overview
 
-These tasks implement the missing `TaskError` model and standardize error handling throughout the OmniQ codebase to achieve full v1 compliance.
+These tasks implement the missing `TaskError` model with 6 core fields and standardize error handling throughout the OmniQ codebase to achieve full v1 compliance. Note: TaskError uses 6 core fields (error_type, message, timestamp, traceback, retry_count, is_retryable) and does NOT include context parameter.
 
 ## Task Dependencies
 

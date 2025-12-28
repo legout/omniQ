@@ -75,3 +75,22 @@ The library MUST emit basic logs for queue and worker behavior and allow users t
 - **THEN** the library SHOULD emit log messages for these lifecycle events at appropriate levels
 - **AND** these logs MUST NOT include sensitive task argument data by default.
 
+### Requirement: TaskError Wire Format
+The system MUST define a stable wire format for TaskError serialization.
+
+#### Scenario: TaskError wire format for JSON and msgspec
+- **GIVEN** a TaskError with error information
+- **WHEN** serialized to JSON or msgspec
+- **THEN** the wire format MUST include exactly these 6 fields:
+  ```json
+  {
+    "error_type": "ValueError",
+    "message": "Invalid input",
+    "timestamp": "2025-12-28T12:00:00Z",
+    "traceback": null,
+    "retry_count": 0,
+    "is_retryable": true
+  }
+  ```
+- **AND** MUST NOT include severity, category, exception_type, context, or max_retries for v1
+

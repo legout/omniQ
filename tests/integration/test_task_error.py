@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Comprehensive tests for TaskError model and functionality.
+Comprehensive tests for TaskError model and functionality (v1 - 6 fields).
 """
 
 import asyncio
@@ -8,7 +8,7 @@ import tempfile
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
 
-from src.omniq.models import (
+from omniq.models import (
     TaskError,
     Task,
     TaskStatus,
@@ -17,13 +17,13 @@ from src.omniq.models import (
     is_failed,
     get_error_message,
 )
-from src.omniq.serialization import (
+from omniq.serialization import (
     serialize_task_error,
     deserialize_task_error,
     JSONSerializer,
 )
-from src.omniq.storage.sqlite import SQLiteStorage
-from src.omniq.queue import AsyncTaskQueue
+from omniq.storage.sqlite import SQLiteStorage
+from omniq.queue import AsyncTaskQueue
 
 
 def test_task_error_creation():
@@ -41,50 +41,24 @@ def test_task_error_creation():
     assert error.message == "Test error"
     assert error.retry_count == 0
     assert error.is_retryable is True
-    assert error.severity == "error"
-    assert error.category == "application"  # Auto-categorized
     print("   ✓ Basic TaskError creation works")
 
-    # Test with all fields
+    # Test with all 6 core fields
     error_full = TaskError(
         error_type="timeout",
         message="Task timed out",
         timestamp=datetime.now(timezone.utc),
         traceback="Traceback line 1\nTraceback line 2",
-        exception_type="TimeoutError",
-        context={"timeout": 30, "operation": "test"},
         retry_count=2,
         is_retryable=True,
-        max_retries=5,
-        severity="critical",
-        category="system",
     )
 
     assert error_full.error_type == "timeout"
+    assert error_full.message == "Task timed out"
     assert error_full.retry_count == 2
-    assert error_full.max_retries == 5
-    assert error_full.severity == "critical"
-    assert error_full.category == "system"
-    print("   ✓ Full TaskError creation works")
-
-    # Test auto-categorization
-    validation_error = TaskError(
-        error_type="validation",
-        message="Invalid input",
-        timestamp=datetime.now(timezone.utc),
-    )
-    assert validation_error.category == "user"
-    print("   ✓ Auto-categorization works")
-
-    # Test severity validation
-    invalid_severity = TaskError(
-        error_type="runtime",
-        message="Test",
-        timestamp=datetime.now(timezone.utc),
-        severity="invalid",
-    )
-    assert invalid_severity.severity == "error"  # Should default to "error"
-    print("   ✓ Severity validation works")
+    assert error_full.is_retryable is True
+    assert error_full.traceback == "Traceback line 1\nTraceback line 2"
+    print("   ✓ Full TaskError creation with all 6 fields works")
 
 
 def test_task_error_from_exception():
@@ -99,7 +73,6 @@ def test_task_error_from_exception():
 
         assert error.error_type == "validation"
         assert error.message == "Invalid value"
-        assert error.exception_type == "ValueError"
         assert error.is_retryable is False
         assert error.traceback is not None
         print("   ✓ TaskError.from_exception works")
@@ -112,31 +85,24 @@ def test_task_error_from_exception():
             e,
             message="Custom error message",
             error_type="runtime",
-            context={"custom": "data"},
         )
 
         assert error.message == "Custom error message"
-        assert error.context == {"custom": "data"}
-        print("   ✓ Custom message and context work")
+        print("   ✓ Custom message works")
 
 
 def test_task_error_serialization():
     """Test TaskError serialization and deserialization."""
     print("\nTesting TaskError serialization...")
 
-    # Create error with all fields
+    # Create error with all 6 fields
     original_error = TaskError(
         error_type="timeout",
         message="Task timeout",
         timestamp=datetime.now(timezone.utc),
         traceback="Test traceback",
-        exception_type="TimeoutError",
-        context={"timeout": 30},
         retry_count=1,
         is_retryable=True,
-        max_retries=3,
-        severity="error",
-        category="system",
     )
 
     # Test to_dict
@@ -144,8 +110,8 @@ def test_task_error_serialization():
     assert error_dict["error_type"] == "timeout"
     assert error_dict["message"] == "Task timeout"
     assert error_dict["retry_count"] == 1
-    assert error_dict["context"] == {"timeout": 30}
     assert "timestamp" in error_dict
+    assert error_dict["is_retryable"] is True
     print("   ✓ TaskError.to_dict works")
 
     # Test from_dict
@@ -153,7 +119,7 @@ def test_task_error_serialization():
     assert deserialized_error.error_type == original_error.error_type
     assert deserialized_error.message == original_error.message
     assert deserialized_error.retry_count == original_error.retry_count
-    assert deserialized_error.context == original_error.context
+    assert deserialized_error.is_retryable == original_error.is_retryable
     print("   ✓ TaskError.from_dict works")
 
     # Test roundtrip
@@ -162,42 +128,41 @@ def test_task_error_serialization():
     assert roundtrip_error.message == original_error.message
     print("   ✓ Serialization roundtrip works")
 
+    # Test backward compatibility with old 11-field data
+    old_format_data = {
+        "error_type": "runtime",
+        "message": "Old error",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "traceback": "Old traceback",
+        "retry_count": 2,
+        "is_retryable": True,
+        "max_retries": 5,  # Old field - should be ignored
+        "exception_type": "ValueError",  # Old field - should be ignored
+        "context": {},  # Old field - should be ignored
+        "severity": "error",  # Old field - should be ignored
+        "category": "unknown",  # Old field - should be ignored
+    }
+    backward_compat_error = TaskError.from_dict(old_format_data)
+    assert backward_compat_error.error_type == "runtime"
+    assert backward_compat_error.message == "Old error"
+    assert backward_compat_error.retry_count == 2
+    assert backward_compat_error.is_retryable is True
+    print("   ✓ Backward compatibility with old 11-field data works")
+
 
 def test_task_error_retry_logic():
     """Test TaskError retry logic."""
     print("\nTesting TaskError retry logic...")
 
-    # Test can_retry without max_retries
-    error_unlimited = TaskError(
+    # Test can_retry for retryable error
+    error_retryable = TaskError(
         error_type="runtime",
         message="Retryable error",
         is_retryable=True,
         retry_count=2,
     )
-    assert error_unlimited.can_retry() is True
-    print("   ✓ Unlimited retry logic works")
-
-    # Test can_retry with max_retries not reached
-    error_limited = TaskError(
-        error_type="runtime",
-        message="Retryable error",
-        is_retryable=True,
-        retry_count=2,
-        max_retries=5,
-    )
-    assert error_limited.can_retry() is True
-    print("   ✓ Limited retry logic works")
-
-    # Test can_retry with max_retries reached
-    error_exhausted = TaskError(
-        error_type="runtime",
-        message="Retryable error",
-        is_retryable=True,
-        retry_count=5,
-        max_retries=5,
-    )
-    assert error_exhausted.can_retry() is False
-    print("   ✓ Retry exhaustion logic works")
+    assert error_retryable.can_retry() is True
+    print("   ✓ Retryable error logic works")
 
     # Test non-retryable error
     error_non_retryable = TaskError(
@@ -205,16 +170,15 @@ def test_task_error_retry_logic():
         message="Non-retryable error",
         is_retryable=False,
         retry_count=1,
-        max_retries=5,
     )
     assert error_non_retryable.can_retry() is False
     print("   ✓ Non-retryable logic works")
 
     # Test increment_retry
-    incremented = error_limited.increment_retry()
+    incremented = error_retryable.increment_retry()
     assert incremented.retry_count == 3
-    assert incremented.error_type == error_limited.error_type
-    assert incremented.message == error_limited.message
+    assert incremented.error_type == error_retryable.error_type
+    assert incremented.message == error_retryable.message
     print("   ✓ increment_retry works")
 
 
@@ -270,14 +234,12 @@ def test_json_serializer_task_error():
 
     serializer = JSONSerializer()
 
-    # Create task with error
+    # Create task with error (6 fields)
     task_error = TaskError(
         error_type="timeout",
         message="Task timed out after 30 seconds",
         timestamp=datetime.now(timezone.utc),
         traceback="Test traceback",
-        exception_type="TimeoutError",
-        context={"timeout": 30},
         retry_count=1,
         is_retryable=True,
     )
@@ -303,11 +265,9 @@ def test_json_serializer_task_error():
     # Check error field
     decoded_error = decoded.get("error")
     assert decoded_error is not None
-    # The JSON serializer returns a TaskError object, not a dict
     assert hasattr(decoded_error, "error_type")
     assert decoded_error.error_type == "timeout"
     assert decoded_error.message == "Task timed out after 30 seconds"
-    assert decoded_error.context["timeout"] == 30
     print("   ✓ JSON deserialization with TaskError works")
 
 
@@ -320,12 +280,11 @@ async def test_storage_task_error():
         storage = SQLiteStorage(db_path)
 
         try:
-            # Create task with error
+            # Create task with error (6 fields)
             task_error = TaskError(
                 error_type="runtime",
                 message="Storage test error",
                 timestamp=datetime.now(timezone.utc),
-                context={"test": True},
             )
 
             task_with_error = create_task(
@@ -351,7 +310,6 @@ async def test_storage_task_error():
             assert retrieved_error is not None
             assert retrieved_error.error_type == "runtime"
             assert retrieved_error.message == "Storage test error"
-            assert retrieved_error.context["test"] is True
             print("   ✓ Storage retrieval with TaskError works")
 
             # Test task without error for backward compatibility
@@ -394,11 +352,10 @@ async def test_queue_task_error():
             assert task.get("error") is None
             print("   ✓ Queue enqueue without error works")
 
-            # Simulate task failure with error
+            # Simulate task failure with error (no exception_type parameter)
             await queue.fail_task(
                 task_id=task_id,
                 error="Simulated failure",
-                exception_type="RuntimeError",
                 task=task,
             )
 
@@ -441,7 +398,6 @@ def test_performance():
         error_type="runtime",
         message="Performance test",
         timestamp=datetime.now(timezone.utc),
-        context={"performance": True},
     )
 
     start_time = time.perf_counter()
@@ -461,7 +417,7 @@ def test_performance():
 
 async def main():
     """Run all TaskError tests."""
-    print("Running TaskError comprehensive tests...\n")
+    print("Running TaskError comprehensive tests (v1 - 6 fields)...\n")
 
     # Unit tests
     test_task_error_creation()

@@ -32,61 +32,29 @@ class ErrorType(str, Enum):
 
 @dataclass
 class TaskError:
-    """Structured error information for failed tasks."""
+    """Structured error information for failed tasks.
+
+    Simplified v1 model with 6 core fields.
+    """
 
     # Core error information
     error_type: str
     message: str
     timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
-
-    # Optional detailed information
     traceback: Optional[str] = None
-    exception_type: Optional[str] = None
-    context: Optional[Dict[str, Any]] = None
 
     # Retry information
     retry_count: int = 0
     is_retryable: bool = True
-    max_retries: Optional[int] = None
-
-    # Error classification
-    severity: str = "error"  # "warning", "error", "critical"
-    category: str = "unknown"
 
     def __post_init__(self) -> None:
         """Validate and normalize error data."""
         # Normalize error_type to lowercase
         self.error_type = self.error_type.lower()
 
-        # Validate severity
-        valid_severities = {"warning", "error", "critical"}
-        if self.severity not in valid_severities:
-            self.severity = "error"
-
-        # Auto-categorize based on error_type if not set
-        if self.category == "unknown":
-            self.category = self._auto_categorize()
-
-    def _auto_categorize(self) -> str:
-        """Auto-categorize error based on error_type."""
-        error_type_mapping = {
-            "timeout": "system",
-            "validation": "user",
-            "resource": "system",
-            "network": "external",
-            "runtime": "application",
-        }
-        return error_type_mapping.get(self.error_type, "unknown")
-
     def can_retry(self) -> bool:
-        """Check if error is retryable based on count and configuration."""
-        if not self.is_retryable:
-            return False
-
-        if self.max_retries is not None:
-            return self.retry_count < self.max_retries
-
-        return True
+        """Check if error is retryable based on configuration."""
+        return self.is_retryable
 
     def increment_retry(self) -> "TaskError":
         """Create a new TaskError with incremented retry count."""
@@ -95,13 +63,8 @@ class TaskError:
             message=self.message,
             timestamp=self.timestamp,
             traceback=self.traceback,
-            exception_type=self.exception_type,
-            context=self.context,
             retry_count=self.retry_count + 1,
             is_retryable=self.is_retryable,
-            max_retries=self.max_retries,
-            severity=self.severity,
-            category=self.category,
         )
 
     def to_dict(self) -> Dict[str, Any]:
@@ -111,18 +74,13 @@ class TaskError:
             "message": self.message,
             "timestamp": self.timestamp.isoformat(),
             "traceback": self.traceback,
-            "exception_type": self.exception_type,
-            "context": self.context,
             "retry_count": self.retry_count,
             "is_retryable": self.is_retryable,
-            "max_retries": self.max_retries,
-            "severity": self.severity,
-            "category": self.category,
         }
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "TaskError":
-        """Create TaskError from dictionary."""
+        """Create TaskError from dictionary with backward compatibility."""
         # Handle timestamp conversion
         timestamp = data.get("timestamp")
         if isinstance(timestamp, str):
@@ -135,13 +93,8 @@ class TaskError:
             message=data.get("message", ""),
             timestamp=timestamp,
             traceback=data.get("traceback"),
-            exception_type=data.get("exception_type"),
-            context=data.get("context"),
             retry_count=data.get("retry_count", 0),
             is_retryable=data.get("is_retryable", True),
-            max_retries=data.get("max_retries"),
-            severity=data.get("severity", "error"),
-            category=data.get("category", "unknown"),
         )
 
     @classmethod
@@ -151,7 +104,6 @@ class TaskError:
         message: Optional[str] = None,
         error_type: str = "runtime",
         is_retryable: bool = True,
-        context: Optional[Dict[str, Any]] = None,
     ) -> "TaskError":
         """Create TaskError from exception."""
         import traceback
@@ -161,8 +113,6 @@ class TaskError:
             message=message or str(exception),
             timestamp=datetime.now(timezone.utc),
             traceback=traceback.format_exc(),
-            exception_type=type(exception).__name__,
-            context=context,
             is_retryable=is_retryable,
         )
 
@@ -203,8 +153,12 @@ class TaskResult(TypedDict):
 # Immutable cached transition matrix for O(1) lookups
 _VALID_TRANSITIONS = {
     TaskStatus.PENDING: frozenset({TaskStatus.RUNNING, TaskStatus.CANCELLED}),
-    TaskStatus.RUNNING: frozenset({TaskStatus.SUCCESS, TaskStatus.FAILED, TaskStatus.CANCELLED}),
-    TaskStatus.FAILED: frozenset({TaskStatus.PENDING, TaskStatus.CANCELLED}),  # For retries
+    TaskStatus.RUNNING: frozenset(
+        {TaskStatus.SUCCESS, TaskStatus.FAILED, TaskStatus.CANCELLED}
+    ),
+    TaskStatus.FAILED: frozenset(
+        {TaskStatus.PENDING, TaskStatus.CANCELLED}
+    ),  # For retries
     TaskStatus.SUCCESS: frozenset(),  # Terminal state
     TaskStatus.CANCELLED: frozenset(),  # Terminal state
 }
@@ -213,13 +167,13 @@ _VALID_TRANSITIONS = {
 def can_transition(from_status: TaskStatus, to_status: TaskStatus) -> bool:
     """
     Check if a status transition is allowed.
-    
+
     Optimized with early returns and immutable frozensets for O(1) performance.
     """
     # Early return for no-op transitions (fastest path)
     if from_status == to_status:
         return True
-    
+
     # O(1) set lookup using cached frozensets
     return to_status in _VALID_TRANSITIONS.get(from_status, frozenset())
 

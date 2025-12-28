@@ -199,7 +199,6 @@ except Exception as e:
         exception=e,
         error_type="runtime",
         is_retryable=True,
-        context={"operation": "data_processing"}
     )
     # Error will be stored with task and used for retry logic
 
@@ -307,6 +306,50 @@ await queue.complete_task(task_id, result="success", task=task)
 # Fail task with retry logic (exponential backoff with jitter)
 await queue.fail_task(task_id, error="Something went wrong", task=task)
 ```
+
+## Retry Budget Semantics
+
+OmniQ uses a clear retry budget model to control task retry behavior:
+
+### Key Concepts
+
+- **`attempts`**: Number of times a task has been claimed for execution (starts at 0, increments on each `PENDING → RUNNING` transition)
+- **`max_retries`**: Maximum total executions allowed for a task
+- **Retry predicate**: `attempts < max_retries` (not `<=` - this allows exactly `max_retries` total executions)
+
+### Retry Behavior
+
+1. **Task execution**: Each time a task transitions from `PENDING` to `RUNNING`, the `attempts` counter increments
+2. **Retry decision**: After a failure, the queue checks `attempts < max_retries` to determine if retry is allowed
+3. **Retry scheduling**: If retry is allowed, queue calculates exponential backoff delay with jitter and reschedules task
+4. **Final failure**: When `attempts >= max_retries`, task is marked as permanently failed
+
+### Example
+
+```python
+from omniq.models import create_task
+
+# Create task with max_retries=3
+task = create_task(
+    func_path="my_module.my_function",
+    max_retries=3,  # Allow 4 total executions (initial + 3 retries)
+)
+
+# Execution flow:
+# 1. First execution: attempts=0, on PENDING→RUNNING becomes attempts=1, fails → retry
+# 2. First retry: attempts=1, becomes attempts=2, fails → retry
+# 3. Second retry: attempts=2, becomes attempts=3, fails → retry
+# 4. Third retry: attempts=3, becomes attempts=4, fails → no retry (attempts >= max_retries)
+# 5. Task marked as permanently failed
+```
+
+### Retry Delay Calculation
+
+The queue computes retry delays using exponential backoff with jitter:
+
+- **Base delay**: 1s, 2s, 4s, 8s, 16s, 32s, 60s (max)
+- **Jitter**: ±25% random variation to prevent thundering herd
+- **Worker delegation**: Worker does NOT calculate delays - queue owns retry policy
 
 ## Worker Management
 
@@ -440,6 +483,33 @@ log_serialization_error("deserialize", "Invalid JSON format")
 | `OMNIQ_LOG_FILE` | Log file path (PROD mode) | logs/omniq.log |
 | `OMNIQ_LOG_ROTATION` | Log rotation size | 100 MB |
 | `OMNIQ_LOG_RETENTION` | Log retention period | 30 days |
+
+## Testing
+
+Run the test suite:
+
+```bash
+# Run all tests
+pytest tests/
+
+# Run specific test suites
+pytest tests/integration/  # Integration tests
+pytest tests/api/  # API tests
+
+# Run with verbose output
+pytest tests/ -v
+
+# Run specific test
+pytest tests/integration/test_contract_invariants.py::TestAtomicClaim::test_sqlite_atomic_claim
+```
+
+The test suite includes:
+
+- **Integration tests**: Contract invariants, retry logic, concurrency, atomic claims
+- **API tests**: Public API functionality
+- **Contract tests**: Atomic claim semantics, attempt counting, retry budget enforcement
+
+All tests use pytest fixtures for setup and teardown, ensuring clean test isolation.
 
 ## Enhanced Logging API
 

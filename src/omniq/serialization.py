@@ -173,18 +173,14 @@ class JSONSerializer:
                 # But avoid circular references by checking for TaskError specifically
                 if obj.__class__.__name__ == "TaskError":
                     # Convert TaskError to dict manually to avoid circular reference
+                    # Only serialize the 6 core fields (v1 compliance)
                     return {
                         "error_type": obj.error_type,
                         "message": obj.message,
                         "timestamp": obj.timestamp.isoformat(),
                         "traceback": obj.traceback,
-                        "exception_type": obj.exception_type,
-                        "context": obj.context,
                         "retry_count": obj.retry_count,
                         "is_retryable": obj.is_retryable,
-                        "max_retries": obj.max_retries,
-                        "severity": obj.severity,
-                        "category": obj.category,
                     }
                 return obj.to_dict()
             raise TypeError(
@@ -201,8 +197,16 @@ class JSONSerializer:
             return d
 
         def datetime_object_hook_final(d):
+            # Skip if already processed (not a dict anymore)
+            if not isinstance(d, dict):
+                return d
+
             # First apply the basic object hook
             d = datetime_object_hook(d)
+
+            # Skip if conversion resulted in non-dict (e.g., TaskError object)
+            if not isinstance(d, dict):
+                return d
 
             # Convert TaskStatus string back to enum
             if "status" in d and isinstance(d["status"], str):

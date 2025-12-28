@@ -25,7 +25,7 @@ def temp_dir() -> Generator[str, None, None]:
 
 
 @pytest.fixture
-async def sqlite_storage(temp_dir: str) -> AsyncGenerator[SQLiteStorage, None]:
+async def sqlite_storage(temp_dir) -> AsyncGenerator[SQLiteStorage, None]:
     """Create an SQLite storage backend for testing."""
     db_path = Path(temp_dir) / "test.db"
     storage = SQLiteStorage(db_path)
@@ -34,7 +34,7 @@ async def sqlite_storage(temp_dir: str) -> AsyncGenerator[SQLiteStorage, None]:
 
 
 @pytest.fixture
-async def file_storage(temp_dir: str) -> AsyncGenerator[FileStorage, None]:
+async def file_storage(temp_dir) -> AsyncGenerator[FileStorage, None]:
     """Create a File storage backend for testing."""
     storage = FileStorage(temp_dir, JSONSerializer())
     yield storage
@@ -42,17 +42,14 @@ async def file_storage(temp_dir: str) -> AsyncGenerator[FileStorage, None]:
 
 
 @pytest.fixture
-def storage_backend(request) -> str:
-    """Parameterize storage backend selection."""
-    return request.param
-
-
-@pytest.fixture
-async def queue(storage: BaseStorage) -> AsyncGenerator[AsyncTaskQueue, None]:
+async def queue(temp_dir) -> AsyncGenerator[AsyncTaskQueue, None]:
     """Create a task queue for testing."""
+    db_path = Path(temp_dir) / "test.db"
+    storage = SQLiteStorage(db_path)
     queue = AsyncTaskQueue(storage)
     yield queue
-    # Note: storage cleanup handled by storage fixture
+    # Storage cleanup is handled by a separate test or by pytest finalizers
+    await storage.close()
 
 
 @pytest.fixture

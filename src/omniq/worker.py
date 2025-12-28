@@ -306,15 +306,22 @@ class AsyncWorkerPool:
         attempts = task["attempts"] + 1
 
         # Create TaskError from exception
+        # Use simple error_type classification (no complex categorization)
+        error_type = "runtime"  # Default to runtime
+        error_name = type(error).__name__
+
+        # Simple classification based on exception name
+        if error_name in ("TimeoutError", "ConnectionError"):
+            error_type = "timeout"
+        elif error_name in ("ValueError", "KeyError", "TypeError"):
+            error_type = "validation"
+        elif error_name in ("ResourceError", "FileNotFoundError"):
+            error_type = "resource"
+
         task_error = TaskError.from_exception(
             exception=error,
-            error_type=self._categorize_error(error),
+            error_type=error_type,
             is_retryable=should_retry(task),
-            context={
-                "task_id": task_id,
-                "func_path": task["func_path"],
-                "attempts": attempts,
-            },
         )
 
         # Update retry count
@@ -327,10 +334,10 @@ class AsyncWorkerPool:
 
         if will_retry:
             # Reschedule for retry - let AsyncTaskQueue handle delay calculation and logging
+            # Queue will compute retry delay and log with ETA
             await self.queue.fail_task(
                 task_id,
                 task_error.message,
-                exception_type=task_error.exception_type,
                 task=task,
             )
         else:
@@ -347,35 +354,6 @@ class AsyncWorkerPool:
 
         # Mark as failed - AsyncTaskQueue already handled this above
         # No additional action needed
-
-    def _categorize_error(self, error: Exception) -> str:
-        """
-        Categorize error by exception type.
-
-        Args:
-            error: The exception to categorize
-
-        Returns:
-            Error category string
-        """
-        error_type = type(error).__name__
-        if error_type in (
-            "TimeoutError",
-            "ConnectionError",
-        ):
-            return "timeout"
-        elif error_type in ("ValueError", "KeyError", "TypeError"):
-            return "validation"
-        elif error_type in ("RuntimeError", "Exception"):
-            return "runtime"
-        elif error_type == "ResourceWarning":
-            return "resource"
-        elif error_type in ("ConnectionRefusedError", "HTTPError"):
-            return "network"
-        elif error_type == "UserError":
-            return "user"
-        else:
-            return "unknown"
 
 
 class WorkerPool:

@@ -187,7 +187,6 @@ class AsyncTaskQueue:
         self,
         task_id: str,
         error: str,
-        exception_type: Optional[str] = None,
         traceback: Optional[str] = None,
         task: Optional[Task] = None,
     ) -> None:
@@ -197,7 +196,6 @@ class AsyncTaskQueue:
         Args:
             task_id: ID of failed task
             error: Error message
-            exception_type: Type of exception
             traceback: Exception traceback
             task: Optional task information for retry logic
         """
