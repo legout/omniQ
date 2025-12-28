@@ -11,3 +11,4 @@ wheels/
 omniq_data/
 logs/
 tmp/
+.coveragerc
