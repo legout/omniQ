@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import inspect
-import random
 import time
 import warnings
 from datetime import datetime, timezone, timedelta
@@ -90,8 +89,9 @@ class AsyncWorkerPool:
         self.concurrency = max(1, concurrency)
         self.poll_interval = max(0.1, poll_interval)
         self._running = False
-        self._tasks = set()  # Track currently running tasks
+        self._tasks = set()  # Track currently running asyncio.Task objects
         self._shutdown_event = asyncio.Event()
+        self._semaphore = asyncio.Semaphore(self.concurrency)
         self.logger = logger or get_logger()
 
     async def start(self) -> None:
@@ -125,6 +125,29 @@ class AsyncWorkerPool:
         self._running = False
         self._shutdown_event.set()
 
+        # Wait for in-flight tasks to complete
+        if self._tasks:
+            self.logger.info(
+                f"Waiting for {len(self._tasks)} in-flight tasks to complete"
+            )
+            try:
+                if timeout is not None:
+                    await asyncio.wait_for(asyncio.wait(self._tasks), timeout=timeout)
+                else:
+                    await asyncio.wait(self._tasks)
+            except asyncio.TimeoutError:
+                self.logger.warning(
+                    "Worker pool shutdown timeout, cancelling remaining tasks"
+                )
+                # Cancel any remaining tasks
+                for task in self._tasks:
+                    task.cancel()
+                # Wait for cancelled tasks to finish
+                if timeout is not None:
+                    await asyncio.wait(self._tasks, timeout=min(5.0, timeout))
+                else:
+                    await asyncio.wait(self._tasks)
+
         # Wait for worker loop to finish
         if timeout is not None:
             try:
@@ -135,14 +158,15 @@ class AsyncWorkerPool:
             await self._shutdown_event.wait()
 
     async def _worker_loop(self) -> None:
-        """Main worker loop that polls and processes tasks."""
+        """Main worker loop that polls and schedules tasks concurrently."""
         while self._running and not self._shutdown_event.is_set():
             try:
                 # Get due task from queue
                 task = await self.queue.dequeue()
 
                 if task is not None:
-                    await self._execute_task(task)
+                    # Schedule task execution with concurrency limit
+                    asyncio.create_task(self._execute_task_with_limit(task))
                 else:
                     # No tasks available, wait before next poll
                     try:
@@ -161,6 +185,31 @@ class AsyncWorkerPool:
                 # Back off on error
                 await asyncio.sleep(min(self.poll_interval, 5.0))
 
+    async def _execute_task_with_limit(self, task: Task) -> None:
+        """
+        Execute a task with concurrency limit and proper task tracking.
+
+        Args:
+            task: The task to execute
+        """
+        task_id = task["id"]
+        task_obj = None
+
+        try:
+            # Acquire semaphore to respect concurrency limit
+            async with self._semaphore:
+                # Track the actual asyncio.Task object for shutdown handling
+                task_obj = asyncio.create_task(self._execute_task(task))
+                self._tasks.add(task_obj)
+                try:
+                    await task_obj
+                finally:
+                    self._tasks.discard(task_obj)
+        except asyncio.CancelledError:
+            self.logger.debug(f"Task {task_id} cancelled during execution")
+        except Exception as e:
+            self.logger.error(f"Unexpected error in task execution wrapper: {e}")
+
     async def _execute_task(self, task: Task) -> None:
         """
         Execute a single task with proper error handling and retry logic.
@@ -169,12 +218,11 @@ class AsyncWorkerPool:
             task: The task to execute
         """
         task_id = task["id"]
-        self._tasks.add(task_id)
 
         try:
             log_task_started(task_id, task["attempts"] + 1)
 
-            # Execute the callable
+            # Execute callable
             result = await self._call_function(task)
 
             # Handle successful completion
@@ -183,9 +231,6 @@ class AsyncWorkerPool:
         except Exception as e:
             # Handle failure with retry logic
             await self._handle_failure(task, e)
-
-        finally:
-            self._tasks.discard(task_id)
 
     async def _call_function(self, task: Task) -> Any:
         """
@@ -277,14 +322,7 @@ class AsyncWorkerPool:
         will_retry = task_error.can_retry() and should_retry(task)
 
         if will_retry:
-            # Calculate backoff delay
-            delay = self._calculate_backoff(attempts)
-            next_eta = datetime.now(timezone.utc) + timedelta(seconds=delay)
-
-            # Log retry
-            log_task_retry(task_id, attempts, next_eta)
-
-            # Reschedule for retry - let AsyncTaskQueue handle this
+            # Reschedule for retry - let AsyncTaskQueue handle delay calculation and logging
             await self.queue.fail_task(
                 task_id,
                 task_error.message,
@@ -303,55 +341,37 @@ class AsyncWorkerPool:
                 last_attempt_at=datetime.now(timezone.utc),
             )
 
-            # Mark as failed - AsyncTaskQueue already handled this above
-            # No additional action needed
+        # Mark as failed - AsyncTaskQueue already handled this above
+        # No additional action needed
 
     def _categorize_error(self, error: Exception) -> str:
         """
-        Categorize error based on exception type.
+        Categorize error by exception type.
 
         Args:
             error: The exception to categorize
 
         Returns:
-            Error type string
+            Error category string
         """
-        error_type_mapping = {
-            "TimeoutError": "timeout",
-            "asyncio.TimeoutError": "timeout",
-            "ValueError": "validation",
-            "TypeError": "validation",
-            "KeyError": "validation",
-            "AttributeError": "validation",
-            "ImportError": "system",
-            "FileNotFoundError": "resource",
-            "PermissionError": "resource",
-            "ConnectionError": "network",
-            "OSError": "system",
-            "RuntimeError": "runtime",
-            "Exception": "runtime",
-        }
-
-        exception_name = type(error).__name__
-        return error_type_mapping.get(exception_name, "runtime")
-
-    def _calculate_backoff(self, attempt: int) -> float:
-        """
-        Calculate exponential backoff with jitter.
-
-        Args:
-            attempt: Current attempt number (1-based)
-
-        Returns:
-            Delay in seconds
-        """
-        # Base delay: 2^attempt seconds, capped at 300 (5 minutes)
-        base_delay = min(2**attempt, 300)
-
-        # Add jitter: ±25% random variation
-        jitter = base_delay * 0.25 * (random.random() * 2 - 1)
-
-        return max(1.0, base_delay + jitter)
+        error_type = type(error).__name__
+        if error_type in (
+            "TimeoutError",
+            "ConnectionError",
+        ):
+            return "timeout"
+        elif error_type in ("ValueError", "KeyError", "TypeError"):
+            return "validation"
+        elif error_type in ("RuntimeError", "Exception"):
+            return "runtime"
+        elif error_type == "ResourceWarning":
+            return "resource"
+        elif error_type in ("ConnectionRefusedError", "HTTPError"):
+            return "network"
+        elif error_type == "UserError":
+            return "user"
+        else:
+            return "unknown"
 
 
 class WorkerPool:
