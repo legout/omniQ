@@ -67,8 +67,9 @@ async def test_e2e_retry_with_sqlite():
                     success = True
                     break
 
-                # Small delay to allow for retry scheduling
-                await asyncio.sleep(0.1)
+                # Wait for retry delay (exponential backoff increases with each attempt)
+                # Wait longer than retry delay (which is 2^attempt seconds with jitter)
+                await asyncio.sleep(2 ** (attempt - 1) + 1.5)  # 1.5s, 2.5s, 4.5s
 
             assert success, "Task should eventually succeed"
             assert attempt == 3, "Should have taken exactly 3 attempts"
@@ -102,7 +103,7 @@ async def test_e2e_retry_with_file_storage():
                 func_path="test_module.file_retry_function",
                 args=[],
                 kwargs={},
-                max_retries=2,
+                max_retries=3,
                 timeout=30,
             )
 
@@ -114,11 +115,19 @@ async def test_e2e_retry_with_file_storage():
             await queue.fail_task(task_id, "First failure", task=task)
             print("   First attempt failed, retry scheduled")
 
+            # Wait for retry delay
+            import time
+
+            time.sleep(2)
+
             # Second attempt - fail
             retry_task = await queue.dequeue()
             assert retry_task is not None, "Should have retry task"
             await queue.fail_task(task_id, "Second failure", task=retry_task)
             print("   Second attempt failed, final retry scheduled")
+
+            # Wait for retry delay
+            time.sleep(5)
 
             # Third attempt - succeed
             final_task = await queue.dequeue()
@@ -155,7 +164,7 @@ async def test_e2e_interval_tasks_with_retry():
                 args=[],
                 kwargs={},
                 interval=30,  # 30 second interval
-                max_retries=2,
+                max_retries=3,
                 timeout=30,
             )
 
@@ -168,6 +177,11 @@ async def test_e2e_interval_tasks_with_retry():
             # Fail first attempt
             await queue.fail_task(task_id, "Interval task failure", task=task)
             print("   Interval task failed, retry scheduled")
+
+            # Wait for retry delay
+            import time
+
+            time.sleep(2)
 
             # Retry execution - succeed
             retry_task = await queue.dequeue()

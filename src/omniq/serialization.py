@@ -209,15 +209,9 @@ class JSONSerializer:
                 try:
                     from .models import TaskStatus
 
-                    old_status = d["status"]
                     d["status"] = TaskStatus(d["status"])
-                    # Debug: log conversion
-                    print(f"Debug: Converting status {old_status} to {d['status']}")
                 except ValueError:
                     # Keep original value if it's not a valid TaskStatus
-                    print(
-                        f"Debug: Failed to convert status {d['status']} to TaskStatus"
-                    )
                     pass
 
             # Then convert datetime strings back to datetime objects

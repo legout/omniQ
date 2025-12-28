@@ -306,22 +306,6 @@ class AsyncWorkerPool:
             # Mark as failed - AsyncTaskQueue already handled this above
             # No additional action needed
 
-    async def _reschedule_interval_task(self, task: Task, interval: int) -> None:
-        """
-        Reschedule an interval task for its next run.
-
-        Args:
-            task: The completed interval task
-            interval: The interval value from the task
-        """
-        task_id = task["id"]
-
-        # Calculate next eta
-        next_eta = datetime.now(timezone.utc) + timedelta(seconds=float(interval))
-
-        # Interval task rescheduling is handled by AsyncTaskQueue
-        # No additional action needed
-
     def _categorize_error(self, error: Exception) -> str:
         """
         Categorize error based on exception type.

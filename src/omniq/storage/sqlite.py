@@ -283,15 +283,10 @@ class SQLiteStorage(BaseStorage):
 
             current_attempts = int(row[9]) if row[9] is not None else 0
 
-            # Update attempts and timestamps based on whether this is a retry
-            if current_attempts > 0:
-                # For retry tasks, don't increment attempts, just update timestamps
-                new_attempts = current_attempts
-                new_last_attempt_at = datetime.now(timezone.utc)
-            else:
-                # For new tasks, increment attempts and update timestamps
-                new_attempts = current_attempts + 1
-                new_last_attempt_at = datetime.now(timezone.utc)
+            # Always increment attempts when transitioning to RUNNING
+            # This ensures consistent attempt counting across all backends
+            new_attempts = current_attempts + 1
+            new_last_attempt_at = datetime.now(timezone.utc)
 
             # Single atomic UPDATE to set status, attempts, and timestamps
             await conn.execute(
@@ -331,69 +326,7 @@ class SQLiteStorage(BaseStorage):
 
                 task["error"] = deserialize_task_error(self._deserialize_json(row[13]))
 
-            # Convert row to Task
-            schedule = self._deserialize_json(row[5])
-            eta = schedule.get("eta")
-            if eta:
-                schedule["eta"] = self._deserialize_datetime(eta)
-
-            # Handle interval deserialization
-            interval = schedule.get("interval")
-            if (
-                interval
-                and isinstance(interval, dict)
-                and interval.get("type") == "timedelta"
-            ):
-                from ..serialization import deserialize_timedelta
-
-                schedule["interval"] = deserialize_timedelta(interval)
-
-            task: Task = {
-                "id": row[0],
-                "func_path": row[1],
-                "args": self._deserialize_json(row[2]),
-                "kwargs": self._deserialize_json(row[3]),
-                "status": TaskStatus(row[4]),
-                "schedule": schedule,
-                "max_retries": int(row[7]) if row[7] is not None else 0,
-                "timeout": row[8],
-                "attempts": int(row[9]) if row[9] is not None else 0,
-                "created_at": self._deserialize_datetime(row[10]),
-                "updated_at": self._deserialize_datetime(row[11]),
-                "last_attempt_at": self._deserialize_datetime(row[12]),
-            }
-
-            # Add error field if present
-            if len(row) > 13 and row[13] is not None:
-                from ..serialization import deserialize_task_error
-
-                task["error"] = deserialize_task_error(self._deserialize_json(row[13]))
-
-            # Update attempts and last_attempt_at for RUNNING status
-            # Always use transition_status which handles attempt counting correctly
-            print(
-                f"DEBUG: In dequeue, task_id={task['id']}, current_attempts={task.get('attempts', 0)}"
-            )
-            updated_task = transition_status(task, TaskStatus.RUNNING)
-            print(f"DEBUG: Final updated_task['attempts']={updated_task['attempts']}")
-
-            # Update the task in database with new attempts/timestamp
-            await conn.execute(
-                """
-                UPDATE tasks 
-                SET attempts = ?, last_attempt_at = ?, updated_at = ?
-                WHERE id = ?
-            """,
-                (
-                    updated_task["attempts"],
-                    self._serialize_datetime(updated_task["last_attempt_at"]),
-                    self._serialize_datetime(updated_task["updated_at"]),
-                    task["id"],
-                ),
-            )
-            await conn.commit()
-
-            return updated_task
+            return task
 
         except Exception as e:
             await conn.rollback()

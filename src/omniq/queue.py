@@ -342,7 +342,7 @@ class AsyncTaskQueue:
             True if task should be retried
         """
         max_retries = task.get("max_retries", 3)
-        return attempts <= max_retries
+        return attempts < max_retries
 
     def _calculate_retry_delay(self, retry_count: int) -> float:
         """

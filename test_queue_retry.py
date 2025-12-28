@@ -58,8 +58,8 @@ async def test_retry_logic():
             retry_task = await queue.dequeue()
             assert retry_task is not None, "Should have dequeued retry task"
             assert retry_task["id"] == task_id, "Retry task ID should match"
-            assert retry_task["attempts"] == 3, (
-                f"Should have 3 attempts (1 original + 1 retry + 1 increment), got {retry_task['attempts']}"
+            assert retry_task["attempts"] == 2, (
+                f"Should have 2 attempts (1 original + 1 retry), got {retry_task['attempts']}"
             )
             print(
                 f"   Dequeued retry task: {retry_task['id']} (attempt {retry_task['attempts']})"
@@ -178,7 +178,10 @@ async def test_retry_with_task_passed():
             )
             print("   Task failed with passed task object")
 
-            # Verify retry works
+            # Verify retry works (need to wait for retry delay)
+            import time
+
+            time.sleep(2)  # Wait for retry delay
             retry_task = await queue.dequeue()
             assert retry_task is not None, "Should have retry task"
             assert retry_task["id"] == task_id, "Retry task ID should match"
