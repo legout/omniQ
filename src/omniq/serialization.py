@@ -31,7 +31,16 @@ def deserialize_task_error(data: dict) -> TaskError:
 
 
 class Serializer(Protocol):
-    """Protocol for task and result serialization."""
+    """Protocol for task and result serialization.
+
+    Implementations of this protocol handle converting Task and TaskResult
+    objects to/from bytes for storage backend persistence. OmniQ provides
+    three implementations:
+
+    - MsgspecSerializer: Fast, secure JSON serialization for common types
+    - CloudpickleSerializer: Supports arbitrary Python objects
+    - JSONSerializer: Universal JSON with type loss for complex types
+    """
 
     def encode_task(self, task: Task) -> bytes:
         """Encode a task to bytes."""

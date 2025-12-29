@@ -50,7 +50,17 @@ class FileStorage(BaseStorage):
         self.results_dir.mkdir(parents=True, exist_ok=True)
 
     async def enqueue(self, task: Task) -> str:
-        """Write task to queue directory with atomic rename."""
+        """Write task to queue directory with atomic rename.
+
+        Args:
+            task: Task object to enqueue
+
+        Returns:
+            Task ID of the enqueued task
+
+        Raises:
+            StorageError: If task cannot be written to disk
+        """
         task_file = self.queue_dir / f"{task['id']}.task"
         temp_file = self.queue_dir / f"{task['id']}.task.tmp"
 
@@ -71,7 +81,17 @@ class FileStorage(BaseStorage):
             raise StorageError(f"Failed to enqueue task {task['id']}: {e}")
 
     async def dequeue(self, now: datetime) -> Optional[Task]:
-        """Find and atomically claim a due task."""
+        """Find and atomically claim a due task.
+
+        Args:
+            now: Current datetime for determining if tasks are due
+
+        Returns:
+            Due task if available, None otherwise
+
+        Raises:
+            StorageError: If task cannot be dequeued properly
+        """
         due_tasks = []
 
         # Scan for due tasks

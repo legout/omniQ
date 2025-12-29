@@ -40,6 +40,20 @@ class AsyncWorkerPool:
     - Exponential backoff with jitter for retries
     - Interval task rescheduling
     - Graceful shutdown handling
+
+    Example:
+        >>> import asyncio
+        >>> from omniq import AsyncOmniQ
+        >>>
+        >>> # Initialize OmniQ
+        >>> omniq = AsyncOmniQ()
+        >>>
+        >>> # Create worker pool with 4 workers
+        >>> worker_pool = omniq.worker(concurrency=4)
+        >>>
+        >>> # Run worker pool (blocks until cancelled)
+        >>> async with worker_pool:
+        ...     await worker_pool.run()
     """
 
     def __init__(
@@ -51,7 +65,7 @@ class AsyncWorkerPool:
         logger: Optional[Any] = None,
     ):
         """
-        Initialize the worker pool.
+        Initialize worker pool.
 
         Args:
             queue: AsyncTaskQueue for task operations (recommended)
@@ -59,6 +73,16 @@ class AsyncWorkerPool:
             concurrency: Maximum number of concurrent tasks
             poll_interval: Seconds between queue polls when idle
             logger: Logger instance (uses default if None)
+
+        Example:
+            >>> from omniq import AsyncOmniQ, AsyncTaskQueue
+            >>>
+            >>> # Create worker pool with queue
+            >>> omniq = AsyncOmniQ()
+            >>> worker = AsyncWorkerPool(queue=omniq._queue, concurrency=4)
+            >>>
+            >>> # Or use the recommended façade
+            >>> worker = omniq.worker(concurrency=4)
         """
         # Parameter validation
         if queue is not None and storage is not None:

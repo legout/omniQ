@@ -76,8 +76,7 @@ class AsyncOmniQ:
         timeout: Optional[int] = None,
         **kwargs: Any,
     ) -> str:
-        """
-        Enqueue a task for execution.
+        """Enqueue a task for execution.
 
         Args:
             func: The function to execute
@@ -90,6 +89,28 @@ class AsyncOmniQ:
 
         Returns:
             Task ID for the enqueued task
+
+        Example:
+            >>> async def send_email(to: str, subject: str, body: str) -> str:
+            ...     # Simulated email sending
+            ...     return f"Email sent to {to}"
+            >>>
+            >>> # Enqueue a simple task
+            >>> task_id = await omniq.enqueue(
+            ...     send_email,
+            ...     "user@example.com",
+            ...     subject="Welcome",
+            ...     body="Hello!"
+            ... )
+            >>>
+            >>> # Enqueue with custom timeout
+            >>> task_id = await omniq.enqueue(
+            ...     send_email,
+            ...     "user@example.com",
+            ...     subject="Report",
+            ...     body="Your report is ready",
+            ...     timeout=60  # 1 minute timeout
+            ... )
         """
         # Extract function path
         func_path = f"{func.__module__}.{func.__qualname__}"
@@ -119,8 +140,7 @@ class AsyncOmniQ:
         wait: bool = False,
         timeout: Optional[float] = None,
     ) -> Optional[TaskResult]:
-        """
-        Get the result of a task.
+        """Get the result of a task.
 
         Args:
             task_id: ID of the task to get result for
@@ -129,6 +149,24 @@ class AsyncOmniQ:
 
         Returns:
             TaskResult if available, None otherwise
+
+        Example:
+            >>> # Get result immediately
+            >>> result = await omniq.get_result("task-id-123")
+            >>> if result:
+            ...     if result.status == TaskStatus.SUCCESS:
+            ...         print(f"Result: {result.result}")
+            ...     else:
+            ...         print(f"Error: {result.error}")
+            >>>
+            >>> # Wait for result with timeout
+            >>> result = await omniq.get_result(
+            ...     "task-id-123",
+            ...     wait=True,
+            ...     timeout=30.0
+            ... )
+            >>> if result:
+            ...     print(f"Task completed after {result.attempts} attempts")
         """
         if wait:
             # Simple polling implementation for waiting
@@ -152,8 +190,7 @@ class AsyncOmniQ:
     def worker(
         self, concurrency: int = 1, poll_interval: float = 1.0
     ) -> AsyncWorkerPool:
-        """
-        Create a worker pool for processing tasks.
+        """Create a worker pool for processing tasks.
 
         Args:
             concurrency: Number of concurrent workers
@@ -161,6 +198,17 @@ class AsyncOmniQ:
 
         Returns:
             AsyncWorkerPool instance
+
+        Example:
+            >>> # Create a single worker
+            >>> worker_pool = omniq.worker()
+            >>> async with worker_pool:
+            ...     await worker_pool.run()  # Runs until cancelled
+            >>>
+            >>> # Create multiple concurrent workers
+            >>> worker_pool = omniq.worker(concurrency=4)
+            >>> async with worker_pool:
+            ...     await worker_pool.run()
         """
         return AsyncWorkerPool(
             queue=self._queue, concurrency=concurrency, poll_interval=poll_interval

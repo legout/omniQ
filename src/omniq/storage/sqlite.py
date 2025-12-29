@@ -182,7 +182,17 @@ class SQLiteStorage(BaseStorage):
         return json.loads(json_str)
 
     async def enqueue(self, task: Task) -> str:
-        """Persist a task and make it eligible for dequeue when its eta is due."""
+        """Persist a task and make it eligible for dequeue when its eta is due.
+
+        Args:
+            task: Task object to enqueue
+
+        Returns:
+            Task ID of the enqueued task
+
+        Raises:
+            StorageError: If task cannot be written to database
+        """
         conn = await self._get_connection()
 
         try:
@@ -237,7 +247,17 @@ class SQLiteStorage(BaseStorage):
             raise StorageError(f"Failed to enqueue task {task['id']}: {e}")
 
     async def dequeue(self, now: datetime) -> Optional[Task]:
-        """Retrieve a single due task, ensuring atomic claim semantics."""
+        """Retrieve a single due task, ensuring atomic claim semantics.
+
+        Args:
+            now: Current datetime for determining if tasks are due
+
+        Returns:
+            Due task if available, None otherwise
+
+        Raises:
+            StorageError: If task cannot be dequeued properly
+        """
         conn = await self._get_connection()
         now_str = self._serialize_datetime(now)
 

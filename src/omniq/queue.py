@@ -75,8 +75,7 @@ class AsyncTaskQueue:
         timeout: Optional[int] = None,
         task_id: Optional[str] = None,
     ) -> str:
-        """
-        Enqueue a task for execution.
+        """Enqueue a task for execution.
 
         Args:
             func_path: Function path for execution
@@ -90,6 +89,28 @@ class AsyncTaskQueue:
 
         Returns:
             Task ID for the enqueued task
+
+        Example:
+            >>> from datetime import datetime, timedelta
+            >>>
+            >>> # Enqueue a simple task
+            >>> task_id = await queue.enqueue(
+            ...     func_path="myapp.tasks.send_email",
+            ...     args=("user@example.com",),
+            ...     kwargs={"subject": "Hello", "body": "World"}
+            ... )
+            >>>
+            >>> # Enqueue a scheduled task
+            >>> task_id = await queue.enqueue(
+            ...     func_path="myapp.tasks.send_report",
+            ...     eta=datetime(2025, 1, 1, 12, 0)
+            ... )
+            >>>
+            >>> # Enqueue a recurring task
+            >>> task_id = await queue.enqueue(
+            ...     func_path="myapp.tasks.cleanup",
+            ...     interval=timedelta(hours=1)
+            ... )
         """
         kwargs = kwargs or {}
 
@@ -123,11 +144,25 @@ class AsyncTaskQueue:
         return task_id
 
     async def dequeue(self) -> Optional[Task]:
-        """
-        Dequeue the next due task.
+        """Dequeue the next due task.
 
         Returns:
             Next due task, or None if no tasks are available
+
+        Example:
+            >>> # Worker loop
+            >>> while True:
+            ...     task = await queue.dequeue()
+            ...     if task is None:
+            ...         await asyncio.sleep(1)
+            ...         continue
+            ...
+            ...     # Process the task
+            ...     try:
+            ...         result = await execute_task(task)
+            ...         await queue.complete_task(task["id"], result)
+            ...     except Exception as e:
+            ...         await queue.fail_task(task["id"], str(e))
         """
         # Get next due task from storage
         now = datetime.now(timezone.utc)
@@ -152,13 +187,23 @@ class AsyncTaskQueue:
     async def complete_task(
         self, task_id: str, result: Optional[Any] = None, task: Optional[Task] = None
     ) -> None:
-        """
-        Mark a task as completed.
+        """Mark a task as completed.
 
         Args:
             task_id: ID of completed task
             result: Task result (optional)
             task: Optional task information for interval rescheduling
+
+        Example:
+            >>> # Complete a task with result
+            >>> await queue.complete_task("task-123", result="42")
+            >>>
+            >>> # Complete an interval task (reschedules automatically)
+            >>> await queue.complete_task(
+            ...     "task-123",
+            ...     result="success",
+            ...     task=task_object
+            ... )
         """
         # Get task information to determine actual attempt count
         if task is None:
@@ -190,14 +235,28 @@ class AsyncTaskQueue:
         traceback: Optional[str] = None,
         task: Optional[Task] = None,
     ) -> None:
-        """
-        Mark a task as failed and handle retry logic.
+        """Mark a task as failed and handle retry logic.
 
         Args:
             task_id: ID of failed task
             error: Error message
             traceback: Exception traceback
             task: Optional task information for retry logic
+
+        Example:
+            >>> # Fail a task with error message
+            >>> await queue.fail_task("task-123", error="Division by zero")
+            >>>
+            >>> # Fail with traceback
+            >>> import traceback
+            >>> try:
+            ...     result = 1 / 0
+            ... except Exception as e:
+            ...     await queue.fail_task(
+            ...         "task-123",
+            ...         error=str(e),
+            ...         traceback=traceback.format_exc()
+            ...     )
         """
         # Debug: log task status immediately
         if task:

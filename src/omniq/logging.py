@@ -102,22 +102,43 @@ def bind_task(task_id: str, **kwargs) -> Any:
 
 # Backward compatibility functions
 def log_task_enqueued(task_id: str, func_path: str) -> None:
-    """Log task enqueuing event."""
+    """Log task enqueuing event.
+
+    Args:
+        task_id: Unique identifier for the task
+        func_path: Function path for the enqueued task
+    """
     get_logger().info(f"Task enqueued: {task_id} -> {func_path}")
 
 
 def log_task_started(task_id: str, attempt: int) -> None:
-    """Log task start event."""
+    """Log task start event.
+
+    Args:
+        task_id: Unique identifier for the task
+        attempt: Current attempt number (1-based)
+    """
     get_logger().info(f"Task started: {task_id} (attempt {attempt})")
 
 
 def log_task_completed(task_id: str, attempts: int) -> None:
-    """Log task completion event."""
+    """Log task completion event.
+
+    Args:
+        task_id: Unique identifier for the task
+        attempts: Total number of execution attempts
+    """
     get_logger().info(f"Task completed: {task_id} after {attempts} attempts")
 
 
 def log_task_failed(task_id: str, error: str, will_retry: bool) -> None:
-    """Log task failure event."""
+    """Log task failure event.
+
+    Args:
+        task_id: Unique identifier for the task
+        error: Error message describing the failure
+        will_retry: Whether the task will be retried
+    """
     logger = get_logger()
     if will_retry:
         logger.warning(f"Task failed (will retry): {task_id} - {error}")

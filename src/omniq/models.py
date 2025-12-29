@@ -118,11 +118,82 @@ class TaskError:
 
 
 class Schedule(TypedDict):
+    """Scheduling configuration for task execution.
+
+    Controls when and how frequently a task should be executed. Used in
+    conjunction with the Task model to define delayed or recurring tasks.
+
+    Attributes:
+        eta: Estimated time of arrival - the datetime when the task should
+            first execute. If None, the task is eligible for immediate execution.
+        interval: Time interval between executions for recurring tasks. If set,
+            the task will be rescheduled after each successful completion.
+            Can be None for one-time tasks.
+
+    Example:
+        >>> from datetime import datetime, timedelta
+        >>>
+        >>> # Task scheduled for specific time
+        >>> schedule1: Schedule = {"eta": datetime(2025, 1, 1, 12, 0)}
+        >>>
+        >>> # Task that runs every hour
+        >>> schedule2: Schedule = {"interval": timedelta(hours=1)}
+        >>>
+        >>> # Task with both eta and interval (starts at eta, then repeats)
+        >>> schedule3: Schedule = {
+        ...     "eta": datetime(2025, 1, 1, 12, 0),
+        ...     "interval": timedelta(hours=1)
+        ... }
+    """
+
     eta: NotRequired[Optional[datetime]]
     interval: NotRequired[Optional[timedelta]]  # time interval
 
 
 class Task(TypedDict):
+    """Core task model representing a unit of work in the queue.
+
+    A Task encapsulates all information needed to execute, track, and retry
+    a function call asynchronously. Tasks transition through status states
+    (PENDING -> RUNNING -> SUCCESS/FAILED) with automatic retry support.
+
+    Attributes:
+        id: Unique identifier for the task (UUID string).
+        func_path: Dot-separated import path to the function to execute
+            (e.g., "my_module.process_data").
+        args: Positional arguments to pass to the function.
+        kwargs: Keyword arguments to pass to the function.
+        status: Current task status (PENDING, RUNNING, SUCCESS, FAILED,
+            or CANCELLED).
+        schedule: Scheduling configuration for delayed or recurring tasks.
+        max_retries: Maximum number of retry attempts after failure.
+        timeout: Maximum execution time in seconds. If None, no timeout
+            is enforced.
+        attempts: Number of times the task has been attempted.
+        created_at: Timestamp when the task was created (UTC).
+        updated_at: Timestamp of the last task update (UTC).
+        last_attempt_at: Timestamp when the task last started execution (UTC).
+        error: Structured error information if the task failed.
+
+    Example:
+        >>> from datetime import datetime, timedelta
+        >>>
+        >>> task: Task = {
+        ...     "id": "abc123",
+        ...     "func_path": "myapp.tasks.process_image",
+        ...     "args": ["image.png"],
+        ...     "kwargs": {"quality": 90},
+        ...     "status": TaskStatus.PENDING,
+        ...     "schedule": {},
+        ...     "max_retries": 3,
+        ...     "timeout": 300,
+        ...     "attempts": 0,
+        ...     "created_at": datetime.now(timezone.utc),
+        ...     "updated_at": datetime.now(timezone.utc),
+        ...     "last_attempt_at": None,
+        ... }
+    """
+
     id: str
     func_path: str
     args: list[Any]
@@ -139,6 +210,48 @@ class Task(TypedDict):
 
 
 class TaskResult(TypedDict):
+    """Result returned after task execution completes or fails.
+
+    Provides the outcome of task execution, including either the successful
+    result or error information. Used by public APIs to return task results
+    to callers.
+
+    Attributes:
+        task_id: ID of the task that produced this result.
+        status: Final task status (SUCCESS or FAILED).
+        result: The return value from the task function if successful. None
+            if the task failed.
+        error: Error message string if the task failed. None if successful.
+        finished_at: Timestamp when the task finished execution (UTC).
+        attempts: Total number of execution attempts made.
+        last_attempt_at: Timestamp when the last execution attempt started (UTC).
+
+    Example:
+        >>> from datetime import datetime, timezone
+        >>>
+        >>> # Successful result
+        >>> success: TaskResult = {
+        ...     "task_id": "abc123",
+        ...     "status": TaskStatus.SUCCESS,
+        ...     "result": 42,
+        ...     "error": None,
+        ...     "finished_at": datetime.now(timezone.utc),
+        ...     "attempts": 1,
+        ...     "last_attempt_at": datetime.now(timezone.utc),
+        ... }
+        >>>
+        >>> # Failed result
+        >>> failure: TaskResult = {
+        ...     "task_id": "abc123",
+        ...     "status": TaskStatus.FAILED,
+        ...     "result": None,
+        ...     "error": "Division by zero",
+        ...     "finished_at": datetime.now(timezone.utc),
+        ...     "attempts": 3,
+        ...     "last_attempt_at": datetime.now(timezone.utc),
+        ... }
+    """
+
     task_id: str
     status: TaskStatus
     result: Optional[Any]

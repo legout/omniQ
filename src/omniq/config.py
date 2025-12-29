@@ -9,6 +9,32 @@ from .serialization import Serializer
 
 
 class BackendType(str, Enum):
+    """Storage backend options for task persistence.
+
+    OmniQ supports multiple storage backends with different tradeoffs for
+    scalability, performance, and deployment requirements.
+
+    Attributes:
+        FILE: File-based storage using JSON files. Simple and portable with no
+            external dependencies. Suitable for development and single-process
+            deployments. Not recommended for production with high concurrency.
+        SQLITE: SQLite database storage. Provides ACID guarantees and better
+            concurrency support. Suitable for production use with moderate loads.
+            Requires a database file path configuration.
+
+    Example:
+        >>> from omniq.config import Settings, BackendType
+        >>>
+        >>> # Use file backend (simple, no dependencies)
+        >>> settings = Settings(backend=BackendType.FILE)
+        >>>
+        >>> # Use SQLite backend (better concurrency)
+        >>> settings = Settings(
+        ...     backend=BackendType.SQLITE,
+        ...     db_url="sqlite:///omniq.db"
+        ... )
+    """
+
     FILE = "file"
     SQLITE = "sqlite"
 
@@ -32,6 +58,50 @@ class Settings:
         serializer: Literal["msgspec", "cloudpickle", "json"] = "msgspec",
         log_level: str = "INFO",
     ):
+        """Initialize OmniQ configuration settings.
+
+        Args:
+            backend: Storage backend type (FILE or SQLITE). Defaults to FILE.
+            db_url: Database URL for SQLite backend (e.g., "sqlite:///path/to/db").
+                Required when backend is SQLITE. Ignored for FILE backend.
+                Defaults to None.
+            base_dir: Base directory for file storage backend. Defaults to
+                "./omniq_data". Ignored for SQLITE backend.
+            default_timeout: Default task timeout in seconds. If None, no timeout
+                is enforced. Defaults to 300 (5 minutes).
+            default_max_retries: Default maximum retry attempts for failed tasks.
+                Defaults to 3. Set to 0 to disable retries.
+            result_ttl: Time-to-live for task results in seconds. Results older
+                than this may be garbage collected. Defaults to 86400 (24 hours).
+            serializer: Serializer type for task arguments and results. Options:
+                "msgspec" (fast, Python types only), "cloudpickle" (supports any
+                Python object), or "json" (universal but slower). Defaults to
+                "msgspec".
+            log_level: Logging level for task execution logs. Must be one of
+                "DEBUG", "INFO", "WARNING", "ERROR", or "CRITICAL". Defaults to
+                "INFO".
+
+        Raises:
+            ValueError: If db_url is not provided when using SQLITE backend.
+
+        Example:
+            >>> from omniq.config import Settings, BackendType
+            >>>
+            >>> # Minimal configuration with defaults
+            >>> settings = Settings()
+            >>>
+            >>> # SQLite backend with custom path
+            >>> settings = Settings(
+            ...     backend=BackendType.SQLITE,
+            ...     db_url="sqlite:///data/omniq.db"
+            ... )
+            >>>
+            >>> # Custom timeout and retries
+            >>> settings = Settings(
+            ...     default_timeout=600,  # 10 minutes
+            ...     default_max_retries=5
+            ... )
+        """
         self.backend = backend
         self.db_url = db_url
         self.base_dir = Path(base_dir)
@@ -43,8 +113,10 @@ class Settings:
 
     @classmethod
     def from_env(cls) -> Settings:
-        """
-        Create Settings from environment variables with validation and defaults.
+        """Create Settings from environment variables with validation and defaults.
+
+        Reads configuration from environment variables and creates a Settings
+        instance. All variables are optional and have sensible defaults.
 
         Environment variables:
         - OMNIQ_BACKEND: Storage backend ('file' or 'sqlite')
@@ -53,8 +125,25 @@ class Settings:
         - OMNIQ_DEFAULT_TIMEOUT: Default task timeout in seconds
         - OMNIQ_DEFAULT_MAX_RETRIES: Default maximum retry attempts
         - OMNIQ_RESULT_TTL: Result time-to-live in seconds
-        - OMNIQ_SERIALIZER: Serializer type ('msgspec' or 'cloudpickle')
-        - OMNIQ_LOG_LEVEL: Logging level (DEBUG, INFO, WARNING, ERROR)
+        - OMNIQ_SERIALIZER: Serializer type ('msgspec', 'cloudpickle', or 'json')
+        - OMNIQ_LOG_LEVEL: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+
+        Returns:
+            Settings instance configured from environment variables
+
+        Raises:
+            ValueError: If any environment variable has an invalid value
+
+        Example:
+            >>> # Set environment variables (e.g., in .env file)
+            >>> # export OMNIQ_BACKEND=sqlite
+            >>> # export OMNIQ_DB_URL=sqlite:///data/omniq.db
+            >>> # export OMNIQ_DEFAULT_MAX_RETRIES=5
+            >>>
+            >>> # Create settings from environment
+            >>> settings = Settings.from_env()
+            >>> print(settings.backend)  # BackendType.SQLITE
+            >>> print(settings.default_max_retries)  # 5
         """
         # Backend selection
         backend_env = os.getenv("OMNIQ_BACKEND", "file").lower()
