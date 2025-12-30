@@ -4,6 +4,9 @@ site_author: legout
 repo_url: https://github.com/legout/omniq
 repo_name: legout/omniq
 
+extra:
+  examples: examples/
+
 theme:
   name: material
   palette:
