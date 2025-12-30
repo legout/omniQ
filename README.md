@@ -2,6 +2,18 @@
 
 A modern, async-first task queue library for Python with support for multiple storage backends, enhanced logging, and a clean separation of concerns between task queue, worker, and storage layers.
 
+## Documentation
+
+The full documentation is available at [https://legout.github.io/omniq/](https://legout.github.io/omniq/).
+
+For local development:
+
+```bash
+# Build and serve documentation locally
+uv sync --group docs
+uv run python scripts/build_docs.py serve
+```
+
 ## Features
 
 - **Async-first design**: Built for Python's async/await
@@ -33,15 +45,18 @@ async def main():
     omniq = AsyncOmniQ(Settings())
     
     # Enqueue a task
-    task_id = await omniq.enqueue("my_module.my_function", args=[1, 2])
+    task_id = await omniq.enqueue(my_module.my_function, 1, 2)
     
     # Process tasks with worker
-    async with omniq.worker_pool() as workers:
+    workers = omniq.worker()
+    async with workers:
         await workers.process_tasks(limit=10)
 
 if __name__ == "__main__":
     asyncio.run(main())
 ```
+
+For more examples, see the [examples/](examples/) directory and its [README](examples/README.md).
 
 ## Configuration
 
@@ -356,31 +371,23 @@ The queue computes retry delays using exponential backoff with jitter:
 ### Basic Worker
 
 ```python
-async with omniq.worker_pool() as workers:
-    # Process tasks for 60 seconds
-    await workers.process_tasks(duration=60)
-    
-    # Or process a specific number of tasks
+# Create worker pool
+workers = omniq.worker()
+
+# Process tasks
+async with workers:
+    # Process a specific number of tasks
     await workers.process_tasks(limit=100)
 ```
 
 ### Advanced Worker Configuration
 
 ```python
-from omniq.worker import AsyncWorkerPool
-
-# Custom worker configuration
-workers = AsyncWorkerPool(
-    storage=storage,
-    serializer=serializer,
-    concurrency=4,  # Number of concurrent workers
-    poll_interval=1.0,  # Seconds between task polls
-    max_retries=3,  # Default retry policy
-    default_timeout=30.0  # Default task timeout
-)
+# Create worker pool with custom settings
+workers = omniq.worker(concurrency=4, poll_interval=1.0)
 
 async with workers:
-    await workers.process_tasks(duration=300)
+    await workers.process_tasks(limit=100)
 ```
 
 ## Enhanced Logging

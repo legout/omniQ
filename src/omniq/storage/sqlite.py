@@ -623,6 +623,100 @@ class SQLiteStorage(BaseStorage):
         except Exception as e:
             raise StorageError(f"Failed to retrieve task {task_id}: {e}")
 
+    async def list_tasks(
+        self, status: Optional[TaskStatus] = None, limit: Optional[int] = 25
+    ) -> list[Task]:
+        """
+        List tasks from SQLite database with optional filtering.
+
+        Args:
+            status: Filter by task status (optional)
+            limit: Maximum number of tasks to return (optional, default 25)
+
+        Returns:
+            List of Task dictionaries, sorted by creation time (newest first)
+        """
+        conn = await self._get_connection()
+
+        try:
+            # Build query with optional status filter
+            if status is not None:
+                query = """
+                    SELECT id, func_path, args, kwargs, status, schedule, eta,
+                           max_retries, timeout, attempts, created_at, updated_at, last_attempt_at, error
+                    FROM tasks
+                    WHERE status = ?
+                    ORDER BY created_at DESC
+                """
+                params = (status.value,)
+            else:
+                query = """
+                    SELECT id, func_path, args, kwargs, status, schedule, eta,
+                           max_retries, timeout, attempts, created_at, updated_at, last_attempt_at, error
+                    FROM tasks
+                    ORDER BY created_at DESC
+                """
+                params = ()
+
+            # Add limit clause if specified
+            if limit is not None:
+                query += " LIMIT ?"
+                params = params + (limit,)
+
+            cursor = await conn.execute(query, params)
+            rows = await cursor.fetchall()
+
+            # Convert rows to Task objects
+            tasks = []
+            for row in rows:
+                # Deserialize schedule
+                schedule = self._deserialize_json(row[5])
+                eta = schedule.get("eta")
+                if eta:
+                    schedule["eta"] = self._deserialize_datetime(eta)
+
+                # Handle interval deserialization
+                interval = schedule.get("interval")
+                if (
+                    interval
+                    and isinstance(interval, dict)
+                    and interval.get("type") == "timedelta"
+                ):
+                    from ..serialization import deserialize_timedelta
+
+                    schedule["interval"] = deserialize_timedelta(interval)
+
+                # Create Task dict
+                task: Task = {
+                    "id": row[0],
+                    "func_path": row[1],
+                    "args": self._deserialize_json(row[2]),
+                    "kwargs": self._deserialize_json(row[3]),
+                    "status": TaskStatus(row[4]),
+                    "schedule": schedule,
+                    "max_retries": int(row[7]) if row[7] is not None else 0,
+                    "timeout": row[8],
+                    "attempts": int(row[9]) if row[9] is not None else 0,
+                    "created_at": self._deserialize_datetime(row[10]),
+                    "updated_at": self._deserialize_datetime(row[11]),
+                    "last_attempt_at": self._deserialize_datetime(row[12]),
+                }
+
+                # Add error field if present
+                if len(row) > 13 and row[13] is not None:
+                    from ..serialization import deserialize_task_error
+
+                    task["error"] = deserialize_task_error(
+                        self._deserialize_json(row[13])
+                    )
+
+                tasks.append(task)
+
+            return tasks
+
+        except Exception as e:
+            raise StorageError(f"Failed to list tasks: {e}")
+
     async def reschedule(self, task_id: str, new_eta: datetime) -> None:
         """Update a task's eta for future execution."""
         conn = await self._get_connection()

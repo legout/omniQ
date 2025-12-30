@@ -151,6 +151,25 @@ class BaseStorage(ABC):
         pass
 
     @abstractmethod
+    async def list_tasks(
+        self, status: Optional[TaskStatus] = None, limit: Optional[int] = None
+    ) -> list[Task]:
+        """
+        List tasks with optional filtering.
+
+        Args:
+            status: Filter by task status (optional). If None, returns all tasks.
+            limit: Maximum number of tasks to return (optional). If None, returns all.
+
+        Returns:
+            List of Task dictionaries matching criteria
+
+        Raises:
+            StorageError: If task listing fails
+        """
+        pass
+
+    @abstractmethod
     async def purge_results(self, older_than: datetime) -> int:
         """
         Remove old results based on age.

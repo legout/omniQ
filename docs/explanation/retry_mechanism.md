@@ -116,8 +116,8 @@ async def reschedule(self, task_id: str, new_eta: datetime) -> None:
 ### Basic Retry
 
 ```python
-from src.omniq.queue import AsyncTaskQueue
-from src.omniq.storage.sqlite import SQLiteStorage
+from omniq.queue import AsyncTaskQueue
+from omniq.storage.sqlite import SQLiteStorage
 
 storage = SQLiteStorage("tasks.db")
 queue = AsyncTaskQueue(storage)

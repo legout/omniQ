@@ -12,3 +12,7 @@ omniq_data/
 logs/
 tmp/
 .coveragerc
+
+# Documentation build artifacts
+docs/index.md
+site/

@@ -332,6 +332,48 @@ class FileStorage(BaseStorage):
         # Task not found
         return None
 
+    async def list_tasks(
+        self, status: Optional[TaskStatus] = None, limit: Optional[int] = 25
+    ) -> list[Task]:
+        """
+        List tasks from filesystem with optional filtering.
+
+        Args:
+            status: Filter by task status (optional)
+            limit: Maximum number of tasks to return (optional, default 25)
+
+        Returns:
+            List of Task dictionaries, sorted by creation time (newest first)
+        """
+        tasks = []
+
+        # Check all possible task file extensions for each status
+        # .task for PENDING, .running for RUNNING, .done for SUCCESS/FAILED
+        for pattern in ["*.task", "*.running", "*.done"]:
+            for task_file in self.queue_dir.glob(pattern):
+                try:
+                    data = task_file.read_bytes()
+                    task = self.serializer.decode_task(data)
+
+                    # Apply status filter if specified
+                    if status is not None and task["status"] != status:
+                        continue
+
+                    tasks.append(task)
+
+                    # Apply limit if specified
+                    if limit is not None and len(tasks) >= limit:
+                        return tasks
+
+                except Exception:
+                    # Skip corrupted files
+                    continue
+
+        # Sort by created_at (newest first) for consistency across backends
+        tasks.sort(key=lambda t: t["created_at"], reverse=True)
+
+        return tasks
+
     async def reschedule(self, task_id: str, new_eta: datetime) -> None:
         """Update task eta for future execution."""
         running_file = self.queue_dir / f"{task_id}.running"

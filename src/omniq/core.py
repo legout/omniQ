@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from typing import Any, Callable, Optional, Union
 
 from .config import Settings
-from .models import Task, TaskResult, TaskError, create_task
+from .models import Task, TaskResult, TaskError, TaskStatus, create_task
 from .storage.base import BaseStorage
 from .storage.file import FileStorage
 from .storage.sqlite import SQLiteStorage
@@ -187,6 +187,30 @@ class AsyncOmniQ:
         else:
             return await self._queue.get_result(task_id)
 
+    async def list_tasks(
+        self, status: Optional[TaskStatus] = None, limit: Optional[int] = 25
+    ) -> list[Task]:
+        """List tasks with optional filtering.
+
+        Args:
+            status: Filter by task status (optional). If None, returns all tasks.
+            limit: Maximum number of tasks to return (optional, default 25). If None, returns all.
+
+        Returns:
+            List of Task dictionaries matching criteria
+
+        Example:
+            >>> # List all tasks
+            >>> tasks = await omniq.list_tasks()
+            >>>
+            >>> # List only pending tasks
+            >>> pending = await omniq.list_tasks(status=TaskStatus.PENDING)
+            >>>
+            >>> # List last 10 failed tasks
+            >>> failed = await omniq.list_tasks(status=TaskStatus.FAILED, limit=10)
+        """
+        return await self._storage.list_tasks(status=status, limit=limit)
+
     def worker(
         self, concurrency: int = 1, poll_interval: float = 1.0
     ) -> AsyncWorkerPool:
@@ -312,6 +336,28 @@ class OmniQ:
             TaskResult if available, None otherwise
         """
         coro = self._async_omniq.get_result(task_id, wait, timeout)
+        return self._run_async(coro)
+
+    def list_tasks(
+        self, status: Optional[TaskStatus] = None, limit: Optional[int] = 25
+    ) -> list[Task]:
+        """List tasks with optional filtering (blocking).
+
+        Args:
+            status: Filter by task status (optional). If None, returns all tasks.
+            limit: Maximum number of tasks to return (optional, default 25). If None, returns all.
+
+        Returns:
+            List of Task dictionaries matching criteria
+
+        Example:
+            >>> # List all tasks
+            >>> tasks = omniq.list_tasks()
+            >>>
+            >>> # List only pending tasks
+            >>> pending = omniq.list_tasks(status=TaskStatus.PENDING)
+        """
+        coro = self._async_omniq.list_tasks(status=status, limit=limit)
         return self._run_async(coro)
 
     def worker(self, concurrency: int = 1, poll_interval: float = 1.0) -> WorkerPool:

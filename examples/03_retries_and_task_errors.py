@@ -1,10 +1,10 @@
-"""Basic OmniQ usage example with retry functionality.
+"""Retries and task errors example: File backend, deterministic retries, error/result metadata.
 
-This example demonstrates:
+Demonstrates:
 - File storage backend
 - Deterministic retry behavior (fail N times then succeed)
-- Task execution with workers
-- Result retrieval with error metadata
+- Task error and result metadata
+- Retry budget and exponential backoff
 """
 
 import asyncio
@@ -18,7 +18,7 @@ from tasks import flaky_task, reset_call_counts
 
 
 async def main():
-    print("=== Basic Retry Example ===")
+    print("=== Retries and Task Errors Example ===")
     print()
 
     reset_call_counts()  # Reset for clean example run
@@ -36,7 +36,7 @@ async def main():
         # Enqueue a task that will fail 2 times before succeeding
         print("Enqueuing flaky task (will fail 2 times, then succeed)...")
         task_id = await omniq.enqueue(
-            flaky_task, "example-value", fail_before=2, max_retries=3
+            flaky_task, "test-value", fail_before=2, max_retries=3
         )
         print(f"  Task ID: {task_id}")
         print(f"  Config: max_retries=3 (allows up to 4 total executions)")
@@ -98,7 +98,7 @@ async def main():
                     print(f"    Retry count: {error.retry_count}")
                 print()
 
-    print("✓ Basic retry example completed")
+    print("✓ Retries example completed")
     print()
     print("Note: The task is configured to fail 2 times before succeeding.")
     print(
