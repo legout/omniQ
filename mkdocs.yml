@@ -1,0 +1,92 @@
+site_name: OmniQ
+site_description: A modern, async-first task queue library for Python
+site_author: legout
+repo_url: https://github.com/legout/omniq
+repo_name: legout/omniq
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        name: Switch to dark mode
+        icon: material/brightness-7
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        name: Switch to light mode
+        icon: material/brightness-4
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.indexes
+    - content.code.copy
+    - search.suggest
+    - search.highlight
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - admonition
+  - pymdownx.details
+  - attr_list
+  - md_in_html
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: google
+            show_source: true
+            show_root_heading: true
+            show_root_full_path: false
+            heading_level: 2
+
+nav:
+  - Home: index.md
+  - Tutorials:
+      - tutorials/index.md
+      - Async Quickstart: tutorials/quickstart.md
+      - Scheduling (ETA & Interval): tutorials/scheduling.md
+      - Retries & Task Errors: tutorials/retries.md
+      - Logging & Sync API: tutorials/logging.md
+  - How-to Guides:
+      - how-to/index.md
+      - Choose Backend: how-to/choose-backend.md
+      - Run Workers: how-to/run-workers.md
+      - Configure Retries: how-to/configure-retries.md
+      - Inspect Errors: how-to/inspect-errors.md
+      - Configure Logging: how-to/configure-logging.md
+  - Reference:
+      - reference/index.md
+      - API:
+          - reference/api/omniq.md
+          - reference/api/core.md
+          - reference/api/config.md
+          - reference/api/models.md
+          - reference/api/logging.md
+          - reference/api/serialization.md
+          - reference/api/queue.md
+          - reference/api/worker.md
+          - reference/api/storage.md
+  - Explanation:
+      - explanation/index.md
+      - Architecture: explanation/architecture.md
+      - Retry Model: explanation/retry_mechanism.md
+      - Scheduling Model: explanation/scheduling.md
+      - Storage Tradeoffs: explanation/storage-tradeoffs.md
