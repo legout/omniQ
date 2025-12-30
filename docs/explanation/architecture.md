@@ -31,6 +31,7 @@ graph TD
     Facade -->|delegates| Queue
     Queue -->|uses| Worker
     Worker -->|uses| Storage
+```
 ## Component Responsibilities
 
 ### Façade Layer
